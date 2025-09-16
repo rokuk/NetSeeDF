@@ -1,0 +1,9 @@
+pyqt6-sip
+scipy
+matplotlib
+numpy
+PyQt6
+cartopy
+folium
+netCDF4
+PyQt6-WebEngine
