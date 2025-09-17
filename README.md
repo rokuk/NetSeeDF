@@ -26,4 +26,4 @@ NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 NetSeeDF is written in Python 3.13
 - Install the required packages in `requirements.txt`
 - To make the map work offline, install the package `offline_folium` and run `python -m offline_folium` when online. If needed, change the path where `offline_folium` files were downloaded in [netseedf.spec](netseedf.spec)
-- Build the app with `pyinstaller netseedf.spec`
+- Build the app for Windows with `pyinstaller netseedf.spec`
