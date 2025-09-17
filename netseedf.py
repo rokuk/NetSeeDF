@@ -1,11 +1,11 @@
 import sys
 import os
 from pathlib import Path
-
 from netCDF4 import Dataset
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, QVBoxLayout, \
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from datawindow import DataWindow
 from plotwindow import PlotWindow
 
@@ -15,7 +15,8 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("NetSeeDF")
-        self.setGeometry(2800, 100, 1000, 600)
+        #self.setGeometry(2800, 100, 1000, 600)
+        self.setMinimumSize(800, 400)
 
         self.file_paths = []
         self.firsttreeitem = True
@@ -36,8 +37,8 @@ class MainWindow(QMainWindow):
         tree.setHeaderLabels(["Name", "Description", "Shape"])
         tree.setStyleSheet("QTreeView::item:selected { background-color:#007acc; color:white;}")
         tree.currentItemChanged.connect(self.on_selection_change)
-        tree.setColumnWidth(0, 230)
-        tree.setColumnWidth(1, 150)
+        tree.setColumnWidth(0, 200)
+        tree.setColumnWidth(1, 120)
         select_layout.addWidget(tree)
         self.tree = tree
 
@@ -69,8 +70,8 @@ class MainWindow(QMainWindow):
         self.text_area = text_area
         desc_layout.addWidget(text_area)
 
-        main_layout = QHBoxLayout()
         main_widget = QWidget()
+        main_layout = QHBoxLayout()
         main_widget.setLayout(main_layout)
         main_layout.addWidget(select_widget)
         main_layout.addWidget(desc_widget)
@@ -92,8 +93,6 @@ class MainWindow(QMainWindow):
             str(Path.home()),
             "NetCDF files (*.nc)"
         )
-
-        #file_path = r"C:\Users\rokuk\Documents\Code\aquacrop-testing\inputdata\historical\tas_12km_ARSO_v5_day_19810101_20101231.nc"
 
         if file_path:
             if file_path in self.file_paths:
@@ -200,7 +199,15 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    try: # Set taskbar icon on Windows
+        from ctypes import windll  # Only exists on Windows.
+        myappid = 'org.rokuk.netseedf'
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except ImportError:
+        pass
+
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon('icon.png'))
     window = MainWindow()
     window.show()
     sys.exit(app.exec())

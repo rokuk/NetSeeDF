@@ -2,17 +2,14 @@ import io
 from matplotlib import pyplot as plt
 import numpy as np
 import numpy.ma as ma
+from offline_folium import offline
 import folium
 from PyQt6.QtCore import QUrl
 from netCDF4 import Dataset
-import cartopy.crs as ccrs
-from cartopy.img_transform import warp_array
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import Qt
-import matplotlib
 import base64
-import utils
 
 
 class PlotWindow(QWidget):
@@ -20,7 +17,7 @@ class PlotWindow(QWidget):
         super().__init__()
 
         self.setWindowTitle(variable_name + " - NetSeeDF")
-        self.setMinimumSize(1300, 600)
+        self.setMinimumSize(650, 600)
         self.view = 0
 
         ncfile = Dataset(file_path, "r")
@@ -67,10 +64,10 @@ class PlotWindow(QWidget):
 
         # GUI setup
         layout = QVBoxLayout()
-        var_label = QLabel("Variable: \t" + variable_name)
-        layout.addWidget(var_label)
         file_label = QLabel("File: \t\t" + file_name)
         layout.addWidget(file_label)
+        var_label = QLabel("Variable: \t" + variable_name)
+        layout.addWidget(var_label)
 
         slice_selector_widget = QWidget()
         slice_selector_layout = QHBoxLayout()

@@ -1,6 +1,8 @@
 import numpy as np
+from PyQt6.QtGui import QCursor
 from netCDF4 import Dataset
-from PyQt6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, QHBoxLayout, QSpinBox, QAbstractItemView
+from PyQt6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, \
+    QHBoxLayout, QSpinBox, QAbstractItemView, QMenu, QApplication
 from PyQt6.QtCore import Qt
 
 
@@ -21,10 +23,10 @@ class DataWindow(QWidget):
         self.data = data
 
         layout = QVBoxLayout()
-        var_label = QLabel("Variable: \t" + variable_name)
-        layout.addWidget(var_label)
         file_label = QLabel("File: \t\t" + file_name)
         layout.addWidget(file_label)
+        var_label = QLabel("Variable: \t" + variable_name)
+        layout.addWidget(var_label)
 
         # display units of the variable if given in the NetCDF file
         try:
@@ -44,6 +46,9 @@ class DataWindow(QWidget):
         # display the data in a table
         data_table = QTableWidget(self)
         data_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        data_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        data_table.customContextMenuRequested.connect(self.open_menu)
+        data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.data_table = data_table
 
         if len(data.shape) == 1: # 1-dimensional data
@@ -62,7 +67,7 @@ class DataWindow(QWidget):
             data_table.resizeColumnsToContents()
 
         elif len(data.shape) == 3: # 3-dimensional data
-            self.setMinimumSize(1000, 700)
+            self.setMinimumSize(700, 600)
 
             # defaults for the indices of dimensions in the NetCDF file data
             slice_dim_index = 0
@@ -98,6 +103,19 @@ class DataWindow(QWidget):
             # get x and y axis variable data
             self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
             self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
+
+            # get x and y axis data units if available
+            self.xdataunit = ""
+            try:
+                self.xdataunit = ncfile.variables[variable_data.dimensions[x_dim_index]].units
+            except Exception:
+                pass
+
+            self.ydataunit = ""
+            try:
+                self.ydataunit = ncfile.variables[variable_data.dimensions[y_dim_index]].units
+            except Exception:
+                pass
 
             # # x axis variable selector
             # xaxis_selector_widget = QWidget()
@@ -197,11 +215,27 @@ class DataWindow(QWidget):
 
 
     def update_headers(self):
-        if self.labels_checkbox.isChecked():
-            self.data_table.setHorizontalHeaderLabels([str(i) for i in self.xdata])
-            self.data_table.setVerticalHeaderLabels([str(i) for i in self.ydata])
-        else:
+        if self.labels_checkbox.isChecked(): # display lat lon values as table headers
+            if self.xdataunit == "degrees_east": # if the axis represent lat lon coordinates and units are given in the NetCDF file, display the degree symbol
+                self.data_table.setHorizontalHeaderLabels([str(i) + "°" for i in self.xdata])
+            else:
+                self.data_table.setHorizontalHeaderLabels([str(i) for i in self.xdata])
+            if self.xdataunit == "degrees_north":
+                self.data_table.setHorizontalHeaderLabels([str(i) + "°" for i in self.ydata])
+            else:
+                self.data_table.setVerticalHeaderLabels([str(i) for i in self.ydata])
+        else: # display axis indexes in headers
             self.data_table.setHorizontalHeaderLabels([str(i) for i in range(1,len(self.xdata)+1)])
             self.data_table.setVerticalHeaderLabels([str(i) for i in range(1,len(self.ydata)+1)])
 
         self.data_table.resizeColumnsToContents()
+
+
+    def open_menu(self, point):
+        item = self.data_table.itemAt(point)
+        if item:
+            menu = QMenu()
+            copy_action = menu.addAction("Copy")
+            action = menu.exec(QCursor.pos())
+            if action == copy_action:
+                QApplication.clipboard().setText(item.text())
