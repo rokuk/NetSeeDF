@@ -17,6 +17,7 @@ NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 
 ## Limitations
 - The software is still in development and currently supports only a limited number of NetCDF file structures.
+- Limited coordinate systems are implemented. Rotated pole grid (rlat, rlon) and grid reference systems (easting, northing) are not supported yet.
 - Only 3D variables can be plotted on a map
 - Showing map background (OpenStreetMap tiles) requires an internet connection
 
