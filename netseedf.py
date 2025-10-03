@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from netCDF4 import Dataset
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, QVBoxLayout, \
-    QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog
+    QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from datawindow import DataWindow
@@ -15,22 +15,15 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("NetSeeDF")
-        #self.setGeometry(2800, 100, 1000, 600)
-        self.setMinimumSize(800, 400)
+        self.setMinimumSize(900, 400)
 
         self.file_paths = []
         self.firsttreeitem = True
         self.file_paths_dict = {}
         self.open_windows = []
 
-        select_widget = QWidget()
-        select_layout = QVBoxLayout()
-        self.select_layout = select_layout
-        select_widget.setLayout(select_layout)
-
         file_button = QPushButton("Open NetCDF file")
         file_button.clicked.connect(self.open_file)
-        select_layout.addWidget(file_button)
 
         tree = QTreeWidget()
         tree.setColumnCount(2)
@@ -39,12 +32,7 @@ class MainWindow(QMainWindow):
         tree.currentItemChanged.connect(self.on_selection_change)
         tree.setColumnWidth(0, 200)
         tree.setColumnWidth(1, 120)
-        select_layout.addWidget(tree)
         self.tree = tree
-
-        desc_widget = QWidget()
-        desc_layout = QVBoxLayout()
-        desc_widget.setLayout(desc_layout)
 
         data_button = QPushButton("Show data")
         data_button.clicked.connect(self.show_data)
@@ -60,7 +48,6 @@ class MainWindow(QMainWindow):
         buttons_widget.setLayout(buttons_layout)
         buttons_layout.addWidget(data_button)
         buttons_layout.addWidget(plot_button)
-        desc_layout.addWidget(buttons_widget)
 
         text_area = QPlainTextEdit()
         text_area.setPlaceholderText("Open a file to view its contents")
@@ -68,13 +55,14 @@ class MainWindow(QMainWindow):
         text_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
         text_area.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.text_area = text_area
-        desc_layout.addWidget(text_area)
 
         main_widget = QWidget()
-        main_layout = QHBoxLayout()
+        main_layout = QGridLayout()
         main_widget.setLayout(main_layout)
-        main_layout.addWidget(select_widget)
-        main_layout.addWidget(desc_widget)
+        main_layout.addWidget(file_button, 0, 0)
+        main_layout.addWidget(tree, 1, 0)
+        main_layout.addWidget(buttons_widget, 0, 1)
+        main_layout.addWidget(text_area, 1, 1)
         self.setCentralWidget(main_widget)
 
 
@@ -148,6 +136,9 @@ class MainWindow(QMainWindow):
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
 
+        shape_str = current_item.data(2, Qt.ItemDataRole.DisplayRole)
+        
+
         dataw = DataWindow(file_name, variable_name, file_path)
         dataw.show()
         self.open_windows.append(dataw)
@@ -194,6 +185,8 @@ class MainWindow(QMainWindow):
             self.text_area.setPlainText(str(ncfile.variables[selection_name]))
             if len(ncfile.variables[selection_name].shape) == 3: # only enable plot button for 3-dimensional variables
                 self.plot_button.setEnabled(True)
+            else:
+                self.plot_button.setEnabled(False)
             self.data_button.setEnabled(True)
             ncfile.close()
 

@@ -7,5 +7,6 @@ cartopy
 folium
 netCDF4
 PyQt6-WebEngine
+openpyxl
 PyInstaller
 offline_folium

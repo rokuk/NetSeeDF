@@ -5,11 +5,13 @@ import numpy.ma as ma
 from offline_folium import offline
 import folium
 from PyQt6.QtCore import QUrl
-from netCDF4 import Dataset
+from netCDF4 import Dataset, num2date
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import Qt
 import base64
+
+from scipy.stats import ncf
 
 
 class PlotWindow(QWidget):
@@ -19,6 +21,9 @@ class PlotWindow(QWidget):
         self.setWindowTitle(variable_name + " - NetSeeDF")
         self.setMinimumSize(650, 600)
         self.view = 0
+        self.file_path = file_path
+        self.variable_name = variable_name
+        self.can_convert_datetime = False
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -26,7 +31,6 @@ class PlotWindow(QWidget):
 
         self.fill_value = variable_data.get_fill_value()
         self.data = data
-
         # defaults for the indices of dimensions in the NetCDF file data
         slice_dim_index = 0
         x_dim_index = 1
@@ -61,6 +65,12 @@ class PlotWindow(QWidget):
         # get x and y axis variable data
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
+        self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+
+        try:
+            self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
+        except Exception:
+            pass
 
         # GUI setup
         layout = QVBoxLayout()
@@ -77,20 +87,29 @@ class PlotWindow(QWidget):
         slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
-        slice_spinner.setMaximum(variable_data.shape[
-                                     slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
+        slice_spinner.setMaximum(variable_data.shape[slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
         slice_spinner.setValue(0)
         slice_spinner.valueChanged.connect(self.update_map)
         self.slice_spinner = slice_spinner
         slice_selector_layout.addWidget(slice_spinner)
+
         try:
-            units = ncfile.variables[
-                variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
-            slice_units = QLabel("   units: " + units)
-            slice_selector_layout.addWidget(slice_units)
+            units = ncfile.variables[variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
+            self.tunits = units
         except Exception:  # in case the units are not included in the file
             pass
+
+        try:
+            slice_date = num2date(self.tdata[0], self.tunits, self.calendar)
+            self.slice_date_label = QLabel(str(slice_date))
+            slice_selector_layout.addWidget(self.slice_date_label)
+            self.can_convert_datetime = True
+        except Exception: # in case the calendar or units are not available
+            pass
+
         layout.addWidget(slice_selector_widget)
+
+        ncfile.close()
 
         # Folium map
         self.map = folium.Map(location=[0, 0], zoom_start=1)
@@ -119,8 +138,16 @@ class PlotWindow(QWidget):
         self.setLayout(layout)
 
     def update_map(self):
-        sliced_data = self.data.take(self.slice_spinner.value(),
-                                     axis=self.slice_dim_index)  # subset data with the current slice index
+        slice_index = self.slice_spinner.value() # get the index of the slice from the spinner
+
+        if self.can_convert_datetime:
+            try:
+                slice_date = num2date(self.tdata[slice_index], self.tunits, self.calendar)
+                self.slice_date_label.setText(str(slice_date))
+            except Exception:
+                pass
+
+        sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
         sliced_data = ma.masked_equal(sliced_data, self.fill_value) # mask missing values (given by the _FillValue in the NetCDF file)
 
         # update image overlay layer on the folium map
@@ -129,7 +156,7 @@ class PlotWindow(QWidget):
 
     def getb64image(self, image_data):
         image = io.BytesIO()
-        plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno")
+        plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="auto")
         plt.axis("off")
         plt.savefig(image, format="png", bbox_inches="tight")
         plt.close()
