@@ -6,7 +6,11 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEd
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from datawindow import DataWindow
+
+import utils
+from datawindow_1d import DataWindow1d
+from datawindow_2d import DataWindow2d
+from datawindow_3d import DataWindow3d
 from plotwindow import PlotWindow
 
 
@@ -129,6 +133,24 @@ class MainWindow(QMainWindow):
             self.tree.setCurrentItem(item)
 
 
+    def open_data_window(self, num_dimensions, file_name, variable_name, file_path):
+        if num_dimensions == 1:
+            dataw = DataWindow1d(file_name, variable_name, file_path)
+        elif num_dimensions == 2:
+            dataw = DataWindow2d(file_name, variable_name, file_path)
+        elif num_dimensions == 3:
+            dataw = DataWindow3d(file_name, variable_name, file_path)
+        else:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("NetSeeDF message")
+            dlg.setText("This shape of data is currently not supported!")
+            dlg.exec()
+            return
+
+        dataw.show()
+        self.open_windows.append(dataw)
+
+
     # Displays a table of the data for the selected variable in a new window
     def show_data(self):
         current_item = self.tree.currentItem()
@@ -137,11 +159,15 @@ class MainWindow(QMainWindow):
         file_path = self.file_paths_dict[file_name]
 
         shape_str = current_item.data(2, Qt.ItemDataRole.DisplayRole)
-        
+        # Try to interpret the shape string as a tuple,
+        try:
+            num_dimensions = utils.tuple_length(shape_str)
+        except Exception: # If unsuccessful, read the data and determine its shape
+            ncfile = Dataset(file_path, "r")
+            num_dimensions = len(ncfile.variables[variable_name].shape)
+            ncfile.close()
 
-        dataw = DataWindow(file_name, variable_name, file_path)
-        dataw.show()
-        self.open_windows.append(dataw)
+        self.open_data_window(num_dimensions, file_name, variable_name, file_path)
 
 
     # Plot the data for the selected variable in a new window

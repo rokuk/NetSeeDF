@@ -7,10 +7,12 @@ from PyQt6.QtCore import Qt
 import openpyxl
 from pathlib import Path
 
+import utils
+
 
 # Window which shows a table of the data for the chosen variable and some info about the variable.
 # Displayed when 'Show data' button is clicked.
-class DataWindow(QWidget):
+class DataWindow1d(QWidget):
     def __init__(self, file_name, variable_name, file_path):
         super().__init__()
 
@@ -50,7 +52,7 @@ class DataWindow(QWidget):
         data_table = QTableWidget(self)
         data_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         data_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        data_table.customContextMenuRequested.connect(self.open_menu)
+        data_table.customContextMenuRequested.connect(utils.show_context_menu)
         data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.data_table = data_table
 
@@ -86,7 +88,6 @@ class DataWindow(QWidget):
 
         layout.addWidget(data_table)
 
-        # we are done reading the data from the NetCDF file
         ncfile.close()
 
         self.setLayout(layout)
@@ -162,38 +163,13 @@ class DataWindow(QWidget):
                         wb = openpyxl.Workbook()
                         ws = wb.active
 
-                        if len(selected_data.shape) == 1:
-                            for row in selected_data:
-                                ws.append([row]) # write float to row
-                        else:
-                            dlg = QMessageBox(self)
-                            dlg.setWindowTitle("NetSeeDF message")
-                            dlg.setText("There was an error saving the file!")
-                            dlg.exec()
-                            return
+                        for row in selected_data:
+                            ws.append([row]) # write float to row
 
-                        try:
-                            wb.save(file_path)
-                        except Exception:
-                            dlg = QMessageBox(self)
-                            dlg.setWindowTitle("NetSeeDF message")
-                            dlg.setText("There was an error saving the file!")
-                            dlg.exec()
-                            return
-
+                        wb.save(file_path) # write the workbook to file
                 except Exception:
                     dlg = QMessageBox(self)
                     dlg.setWindowTitle("NetSeeDF message")
                     dlg.setText("There was an error saving the file!")
                     dlg.exec()
                     return
-
-
-    def open_menu(self, point):
-        item = self.data_table.itemAt(point)
-        if item:
-            menu = QMenu()
-            copy_action = menu.addAction("Copy")
-            action = menu.exec(QCursor.pos())
-            if action == copy_action:
-                QApplication.clipboard().setText(item.text())
