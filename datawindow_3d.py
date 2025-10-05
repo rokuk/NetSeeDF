@@ -1,10 +1,8 @@
 import numpy as np
-from PyQt6.QtGui import QCursor
 from netCDF4 import Dataset, num2date
-from PyQt6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, \
-    QHBoxLayout, QSpinBox, QMenu, QApplication, QPushButton, QFileDialog
+from PyQt6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
+    QHBoxLayout, QSpinBox, QPushButton, QTableView
 from PyQt6.QtCore import Qt
-import openpyxl
 from pathlib import Path
 
 import utils
@@ -49,11 +47,13 @@ class DataWindow3d(QWidget):
             pass
 
         # display the data in a table
-        data_table = QTableWidget(self)
+        data_table = QTableView(self)
         data_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         data_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        data_table.customContextMenuRequested.connect(utils.show_context_menu)
+        data_table.customContextMenuRequested.connect(self.show_context_menu)
         data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        data_table.verticalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        data_table.horizontalHeader().setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
         self.data_table = data_table
 
         self.setMinimumSize(700, 600)
@@ -115,7 +115,7 @@ class DataWindow3d(QWidget):
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         slice_selector_widget.setLayout(slice_selector_layout)
-        slice_selector_layout.addWidget(QLabel("Slice index: "))
+        slice_selector_layout.addWidget(QLabel("Slice: "))
         slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
@@ -162,8 +162,31 @@ class DataWindow3d(QWidget):
         axis_selectors_widget.setLayout(axis_selectors_layout)
         layout.addWidget(axis_selectors_widget)
 
-        self.update_table()  # load initial data into table
-        self.update_headers()  # set table headers
+        # set up the table model and load initial data
+        initial_data = self.get_selected_data().astype(str)
+
+        if self.xdataunit == "degrees_east":  # if the axis represent lat lon coordinates and units are given in the NetCDF file, display the degree symbol
+            xlabels = self.xdata.astype(str) + "°"
+        else:
+            xlabels = self.xdata.astype(str)
+
+        if self.ydataunit == "degrees_north":  # if the axis represent lat lon coordinates and units are given in the NetCDF file, display the degree symbol
+            ylabels = self.ydata.astype(str) + "°"
+        else:
+            ylabels = self.ydata.astype(str)
+
+        self.model = utils.TableModel(initial_data, xlabels, ylabels)
+        self.data_table.setModel(self.model)
+
+        max_xwidth = self.model.get_xwidth(self.data_table)
+        max_ywidth = self.model.get_ywidth(self.data_table)
+
+        self.data_table.verticalHeader().setFixedWidth(max_ywidth + 20)
+
+        for col in range(len(self.xdata)):
+            self.data_table.horizontalHeader().resizeSection(col, max_xwidth + 20)
+
+        self.data_table.update()
 
         layout.addWidget(data_table)
 
@@ -176,98 +199,24 @@ class DataWindow3d(QWidget):
     def get_selected_data(self):
         slice_index = self.slice_spinner.value()
         sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
-
         sliced_data[sliced_data == self.fill_value] = np.nan  # replace fill values with numpy's NaN
-
         return sliced_data
 
 
     def update_table(self):
-        str_data = self.get_selected_data().astype(str)
-
-        if self.can_convert_datetime:
-            try:
-                slice_date = num2date(self.tdata[self.slice_spinner.value()], self.tunits, self.calendar)
-                self.slice_date_label.setText(str(slice_date))
-            except Exception:
-                pass
-
-        # display data
-        self.data_table.setRowCount(len(str_data))
-        self.data_table.setColumnCount(len(str_data[0]))
-        for i in range(len(str_data)):
-            for j in range(len(str_data[0])):
-                self.data_table.setItem(i, j, QTableWidgetItem(str_data[i, j]))
+        slice_2d = self.get_selected_data().astype(str)
+        self.model.set_data(slice_2d)
+        self.data_table.update()
 
 
     def update_headers(self):
-        if self.labels_checkbox.isChecked():  # display lat lon values as table headers
-            if self.xdataunit == "degrees_east":  # if the axis represent lat lon coordinates and units are given in the NetCDF file, display the degree symbol
-                self.data_table.setHorizontalHeaderLabels([str(i) + "°" for i in self.xdata])
-            else:
-                self.data_table.setHorizontalHeaderLabels([str(i) for i in self.xdata])
+        self.model.show_label_headers(self.labels_checkbox.isChecked())
+        self.data_table.update()
 
-            if self.ydataunit == "degrees_north":
-                self.data_table.setVerticalHeaderLabels([str(i) + "°" for i in self.ydata])
-            else:
-                self.data_table.setVerticalHeaderLabels([str(i) for i in self.ydata])
-        else:  # display axis indexes in headers
-            self.data_table.setHorizontalHeaderLabels([str(i) for i in range(1, len(self.xdata) + 1)])
-            self.data_table.setVerticalHeaderLabels([str(i) for i in range(1, len(self.ydata) + 1)])
+
+    def show_context_menu(self, point):
+        utils.show_context_menu(self, point)
 
 
     def export_3d(self):
-        self.show_dialog_and_save(self.get_selected_data())
-
-
-    def show_dialog_and_save(self, selected_data):
-        dialog = QFileDialog(self, "Save File")
-        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dialog.setNameFilters(["Excel File (*.xlsx)", "CSV File (*.csv)", "Text File (*.txt)"])
-        dialog.setDefaultSuffix("xlsx")
-        dialog.setDirectory(self.last_directory)  # Use last directory
-        dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, False)
-
-        if dialog.exec():
-            file_paths = dialog.selectedFiles()
-            if file_paths:
-                file_path = file_paths[0]
-
-                # Determine selected filter
-                selected_filter = dialog.selectedNameFilter()
-                if "Excel" in selected_filter:
-                    ext = ".xlsx"
-                elif "CSV" in selected_filter:
-                    ext = ".csv"
-                elif "Text" in selected_filter:
-                    ext = ".txt"
-                else:
-                    ext = ""
-
-                # Automatically add extension if not present
-                if not file_path.lower().endswith(ext):
-                    file_path += ext
-
-                # Update last directory
-                self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
-
-                try:
-                    # Save example content based on file type
-                    if ext == ".txt":
-                        np.savetxt(file_path, selected_data, delimiter="\t")
-                    elif ext == ".csv":
-                        np.savetxt(file_path, selected_data, delimiter=",", fmt="%s")
-                    elif ext == ".xlsx":
-                        wb = openpyxl.Workbook()
-                        ws = wb.active
-
-                        for row in selected_data:
-                            ws.append(row.tolist())  # Convert NumPy row to list
-
-                        wb.save(file_path) # write the workbook to file
-                except Exception:
-                    dlg = QMessageBox(self)
-                    dlg.setWindowTitle("NetSeeDF message")
-                    dlg.setText("There was an error saving the file!")
-                    dlg.exec()
-                    return
+        utils.show_dialog_and_save(self, self.get_selected_data())

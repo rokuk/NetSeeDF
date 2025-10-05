@@ -52,13 +52,13 @@ class DataWindow2d(QWidget):
         data_table = QTableWidget(self)
         data_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         data_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        data_table.customContextMenuRequested.connect(utils.show_context_menu)
+        data_table.customContextMenuRequested.connect(self.show_context_menu)
         data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.data_table = data_table
 
         str_data = data.astype(str)
         data_table.setRowCount(len(data))
-        data_table.setColumnCount(1)
+        data_table.setColumnCount(len(data[0]))
         for i in range(len(data)):
             for j in range(len(data[0])):
                 data_table.setItem(i, j, QTableWidgetItem(str_data[i, j]))
@@ -116,58 +116,9 @@ class DataWindow2d(QWidget):
                 self.data_table.setItem(i, j, QTableWidgetItem(str_data[i, j]))
 
 
+    def show_context_menu(self, point):
+        utils.show_context_menu(self, point)
+
+
     def export_1d_2d(self):
-        self.show_dialog_and_save(self.data)
-
-
-    def show_dialog_and_save(self, selected_data):
-        dialog = QFileDialog(self, "Save File")
-        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-        dialog.setNameFilters(["Excel File (*.xlsx)", "CSV File (*.csv)", "Text File (*.txt)"])
-        dialog.setDefaultSuffix("xlsx")
-        dialog.setDirectory(self.last_directory)  # Use last directory
-        dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, False)
-
-        if dialog.exec():
-            file_paths = dialog.selectedFiles()
-            if file_paths:
-                file_path = file_paths[0]
-
-                # Determine selected filter
-                selected_filter = dialog.selectedNameFilter()
-                if "Excel" in selected_filter:
-                    ext = ".xlsx"
-                elif "CSV" in selected_filter:
-                    ext = ".csv"
-                elif "Text" in selected_filter:
-                    ext = ".txt"
-                else:
-                    ext = ""
-
-                # Automatically add extension if not present
-                if not file_path.lower().endswith(ext):
-                    file_path += ext
-
-                # Update last directory
-                self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
-
-                try:
-                    # Save example content based on file type
-                    if ext == ".txt":
-                        np.savetxt(file_path, selected_data, delimiter="\t")
-                    elif ext == ".csv":
-                        np.savetxt(file_path, selected_data, delimiter=",", fmt="%s")
-                    elif ext == ".xlsx":
-                        wb = openpyxl.Workbook()
-                        ws = wb.active
-
-                        for row in selected_data:
-                            ws.append(row.tolist())  # Convert NumPy row to list
-
-                        wb.save(file_path) # write the workbook to file
-                except Exception:
-                    dlg = QMessageBox(self)
-                    dlg.setWindowTitle("NetSeeDF message")
-                    dlg.setText("There was an error saving the file!")
-                    dlg.exec()
-                    return
+        utils.show_dialog_and_save(self, self.data)

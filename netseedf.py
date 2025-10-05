@@ -158,14 +158,10 @@ class MainWindow(QMainWindow):
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
 
-        shape_str = current_item.data(2, Qt.ItemDataRole.DisplayRole)
-        # Try to interpret the shape string as a tuple,
-        try:
-            num_dimensions = utils.tuple_length(shape_str)
-        except Exception: # If unsuccessful, read the data and determine its shape
-            ncfile = Dataset(file_path, "r")
-            num_dimensions = len(ncfile.variables[variable_name].shape)
-            ncfile.close()
+        # Read the data and determine its shape
+        ncfile = Dataset(file_path, "r")
+        num_dimensions = len(ncfile.variables[variable_name].shape)
+        ncfile.close()
 
         self.open_data_window(num_dimensions, file_name, variable_name, file_path)
 

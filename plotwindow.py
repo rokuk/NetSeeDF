@@ -1,4 +1,6 @@
 import io
+
+from PyQt6.QtGui import QPixmap, QImage
 from matplotlib import pyplot as plt
 import numpy as np
 import numpy.ma as ma
@@ -10,8 +12,6 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtCore import Qt
 import base64
-
-from scipy.stats import ncf
 
 
 class PlotWindow(QWidget):
@@ -79,11 +79,19 @@ class PlotWindow(QWidget):
         var_label = QLabel("Variable: \t" + variable_name)
         layout.addWidget(var_label)
 
+        # display units of the variable if given in the NetCDF file
+        try:
+            unit_label = QLabel("Units: \t\t" + variable_data.units)
+            self.has_units = True
+            layout.addWidget(unit_label)
+        except Exception:
+            pass
+
         slice_selector_widget = QWidget()
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         slice_selector_widget.setLayout(slice_selector_layout)
-        slice_selector_layout.addWidget(QLabel("Slice index: "))
+        slice_selector_layout.addWidget(QLabel("Slice: "))
         slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
@@ -115,27 +123,43 @@ class PlotWindow(QWidget):
         self.map = folium.Map(location=[0, 0], zoom_start=1)
         self.map._name = "folium"
         self.map._id = "1"
-        #self.colormap = matplotlib.colormaps["inferno"]
+
         self.view = QWebEngineView()
-        layout.addWidget(self.view)
+        mapwidget = QWidget()
+        maplayout = QHBoxLayout()
+        mapwidget.setLayout(maplayout)
+        maplayout.addWidget(self.view)
 
         # Intial data load
         sliced_data = self.data.take(0, axis=self.slice_dim_index)
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
 
+        image, colorbar = self.getb64image(sliced_data)
+
         # Map raster layer
         folium.raster_layers.ImageOverlay(
-            image="data:image/png;base64," + self.getb64image(sliced_data),
+            image="data:image/png;base64," + image,
             bounds=[[np.min(self.ydata), np.min(self.xdata)], [np.max(self.ydata), np.max(self.xdata)]],
             opacity=0.5
         ).add_to(self.map)
 
         folium.FitOverlays().add_to(self.map)  # fit the map view to the overlay size
+        html_data = self.map.get_root().render() # generate html for map
+        self.view.setHtml(html_data, QUrl("about:blank")) # display the html in the web view
 
-        html_data = self.map.get_root().render()
-        self.view.setHtml(html_data, QUrl("about:blank"))
+        # display colorbar
+        qimage = QImage.fromData(colorbar)
+        pixmap = QPixmap.fromImage(qimage)
+        cbar = QLabel()
+        cbar.setPixmap(pixmap)
+        self.cbar = cbar
+
+        maplayout.addWidget(cbar)
+
+        layout.addWidget(mapwidget)
 
         self.setLayout(layout)
+
 
     def update_map(self):
         slice_index = self.slice_spinner.value() # get the index of the slice from the spinner
@@ -150,15 +174,33 @@ class PlotWindow(QWidget):
         sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
         sliced_data = ma.masked_equal(sliced_data, self.fill_value) # mask missing values (given by the _FillValue in the NetCDF file)
 
+        # generate images
+        image, colorbar = self.getb64image(sliced_data)
+
         # update image overlay layer on the folium map
-        js_code = 'var overlay = null;folium_1.eachLayer(function(layer){if(layer instanceof L.ImageOverlay){overlay = layer;}});if(overlay !== null){overlay.setUrl("data:image/png;base64,' + self.getb64image(sliced_data) + '");}'
+        js_code = 'var overlay = null;folium_1.eachLayer(function(layer){if(layer instanceof L.ImageOverlay){overlay = layer;}});if(overlay !== null){overlay.setUrl("data:image/png;base64,' + image + '");}'
         self.view.page().runJavaScript(js_code)
+
+        qimage = QImage.fromData(colorbar)
+        pixmap = QPixmap.fromImage(qimage)
+        self.cbar.setPixmap(pixmap)
+
 
     def getb64image(self, image_data):
         image = io.BytesIO()
-        plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="auto")
+        colorbar = io.BytesIO()
+
+        plt.figure()
+        mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="auto")
         plt.axis("off")
         plt.savefig(image, format="png", bbox_inches="tight")
-        plt.close()
+
+        fig, ax = plt.subplots()
+        fig.colorbar(mpb, ax=ax)
+        ax.remove()
+        fig.savefig(colorbar, format="png", bbox_inches="tight")
+
+        plt.close("all")
         image.seek(0)
-        return base64.b64encode(image.read()).decode("utf-8")
+        colorbar.seek(0)
+        return base64.b64encode(image.read()).decode("utf-8"), colorbar.read()
