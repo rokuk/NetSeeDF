@@ -88,9 +88,9 @@ class TableModel(QAbstractTableModel):
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole:
-            value = self.data[index.row(), index.column()]
-            return str(value)
-        return None
+            return str(self.data[index.row(), index.column()])
+        else:
+            return None
 
     def rowCount(self, parent=None):
         return self.data.shape[0]
@@ -125,3 +125,44 @@ class TableModel(QAbstractTableModel):
 
     def get_ywidth(self, data_table):
         return get_max_width(data_table, self.ylabels)
+
+class SimpleTableModel(QAbstractTableModel):
+    def __init__(self, data):
+        super().__init__()
+        self.data = data
+
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return str(self.data[index.row(), index.column()])
+        else:
+            return None
+
+    def rowCount(self, parent=None):
+        return self.data.shape[0]
+
+    def columnCount(self, parent=None):
+        if len(self.data.shape) == 2:
+            return self.data.shape[1]
+        else:
+            return 1
+
+    def set_data(self, data):
+        self.beginResetModel()
+        self.data = data
+        self.endResetModel()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

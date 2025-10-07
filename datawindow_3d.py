@@ -212,7 +212,7 @@ class DataWindow3d(QWidget):
         self.model.set_data(slice_2d)
         self.data_table.update()
 
-        # calculate new slice date (if able to calculate date)
+        # calculate and display new slice datetime (if able to calculate datetime)
         if self.can_convert_datetime:
             slice_index = self.slice_spinner.value()
             slice_date = num2date(self.tdata[slice_index], self.tunits, self.calendar)
