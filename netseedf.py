@@ -7,11 +7,10 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEd
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 
-import utils
 from datawindow_1d import DataWindow1d
 from datawindow_2d import DataWindow2d
 from datawindow_3d import DataWindow3d
-from plotwindow import PlotWindow
+from plotwindow_3d import PlotWindow3d
 
 
 class MainWindow(QMainWindow):
@@ -173,7 +172,7 @@ class MainWindow(QMainWindow):
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
 
-        plotw = PlotWindow(file_name, variable_name, file_path)
+        plotw = PlotWindow3d(file_name, variable_name, file_path)
         plotw.show()
         self.open_windows.append(plotw)
 

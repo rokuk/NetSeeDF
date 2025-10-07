@@ -16,7 +16,10 @@ class DataWindow3d(QWidget):
 
         self.setWindowTitle(variable_name + " - NetSeeDF")
         self.setMinimumSize(200, 500)
+
         self.last_directory = str(Path.home())
+        self.variable_name = variable_name
+        self.can_convert_datetime = False
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -90,6 +93,7 @@ class DataWindow3d(QWidget):
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+        self.slice_dimension_name = variable_data.dimensions[slice_dim_index]
 
         # get x and y axis data units if available
         self.xdataunit = ""
@@ -115,16 +119,15 @@ class DataWindow3d(QWidget):
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         slice_selector_widget.setLayout(slice_selector_layout)
-        slice_selector_layout.addWidget(QLabel("Slice: "))
-        slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
+        slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + ": "))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
-        slice_spinner.setMaximum(variable_data.shape[
-                                     slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
+        slice_spinner.setMaximum(variable_data.shape[slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
         slice_spinner.setValue(0)
         slice_spinner.valueChanged.connect(self.update_table)
         self.slice_spinner = slice_spinner
         slice_selector_layout.addWidget(slice_spinner)
+        slice_selector_layout.addWidget(QLabel(" of " + str(variable_data.shape[slice_dim_index] - 1)))
 
         # axis selectors container
         axis_selectors_widget = QWidget()
@@ -152,7 +155,7 @@ class DataWindow3d(QWidget):
 
         try:
             slice_date = num2date(self.tdata[0], self.tunits, self.calendar)
-            self.slice_date_label = QLabel(str(slice_date))
+            self.slice_date_label = QLabel(" =  " + str(slice_date))
             slice_selector_layout.addWidget(self.slice_date_label)
             self.can_convert_datetime = True
         except Exception:  # in case the calendar or units are not available
@@ -204,9 +207,16 @@ class DataWindow3d(QWidget):
 
 
     def update_table(self):
+        # get data for the new slice and update table with it
         slice_2d = self.get_selected_data().astype(str)
         self.model.set_data(slice_2d)
         self.data_table.update()
+
+        # calculate new slice date (if able to calculate date)
+        if self.can_convert_datetime:
+            slice_index = self.slice_spinner.value()
+            slice_date = num2date(self.tdata[slice_index], self.tunits, self.calendar)
+            self.slice_date_label.setText(" =  " + str(slice_date))
 
 
     def update_headers(self):
@@ -219,4 +229,5 @@ class DataWindow3d(QWidget):
 
 
     def export_3d(self):
-        utils.show_dialog_and_save(self, self.get_selected_data())
+        suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())
+        utils.show_dialog_and_save(self, self.get_selected_data(), suggested_filename)

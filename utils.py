@@ -16,13 +16,14 @@ def show_context_menu(self, point):
             QApplication.clipboard().setText(str(value))
 
 
-def show_dialog_and_save(self, selected_data):
+def show_dialog_and_save(self, selected_data, suggested_filename):
     dialog = QFileDialog(self, "Save File")
     dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
     dialog.setNameFilters(["Excel File (*.xlsx)", "CSV File (*.csv)", "Text File (*.txt)"])
     dialog.setDefaultSuffix("xlsx")
     dialog.setDirectory(self.last_directory)  # Use last directory
     dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, False)
+    dialog.selectFile(suggested_filename)
 
     if dialog.exec():
         file_paths = dialog.selectedFiles()

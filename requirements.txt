@@ -10,3 +10,4 @@ PyQt6-WebEngine
 openpyxl
 PyInstaller
 offline_folium
+pandas

@@ -1,11 +1,10 @@
-import numpy as np
-from PyQt6.QtGui import QCursor
-from netCDF4 import Dataset, num2date
-from PyQt6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, \
-    QHBoxLayout, QSpinBox, QMenu, QApplication, QPushButton, QFileDialog
-from PyQt6.QtCore import Qt
-import openpyxl
 from pathlib import Path
+
+import numpy as np
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, \
+    QHBoxLayout, QPushButton
+from netCDF4 import Dataset, num2date
 
 import utils
 
@@ -18,7 +17,10 @@ class DataWindow2d(QWidget):
 
         self.setWindowTitle(variable_name + " - NetSeeDF")
         self.setMinimumSize(200, 500)
+
         self.last_directory = str(Path.home())
+        self.variable_name = variable_name
+        self.has_units = False
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -36,6 +38,7 @@ class DataWindow2d(QWidget):
         # display units of the variable if given in the NetCDF file
         try:
             unit_label = QLabel("Units: \t\t" + variable_data.units)
+            self.has_units = True
             layout.addWidget(unit_label)
         except Exception:
             pass
@@ -57,6 +60,10 @@ class DataWindow2d(QWidget):
         self.data_table = data_table
 
         str_data = data.astype(str)
+        if self.has_units:  # the data in the table has degrees displayed if the units are degrees
+            if variable_data.units == "degrees_east" or variable_data.units == "degrees_north":
+                str_data = str_data + "°"
+
         data_table.setRowCount(len(data))
         data_table.setColumnCount(len(data[0]))
         for i in range(len(data)):
@@ -69,9 +76,10 @@ class DataWindow2d(QWidget):
         export_button = QPushButton("Export data")
         export_button.clicked.connect(self.export_1d_2d)
 
+        # add checkbox to convert dates, if the variable has calendar and units attributes
         if "calendar" in variable_data.ncattrs() and "units" in variable_data.ncattrs():
-            try:  #
-                slice_dates = num2date(data, variable_data.units, variable_data.calendar)
+            try:
+                _ = num2date(data, variable_data.units, variable_data.calendar)
                 self.tunits = variable_data.units
                 self.calendar = variable_data.calendar
 
@@ -91,7 +99,6 @@ class DataWindow2d(QWidget):
         ncfile.close()
 
         self.setLayout(layout)
-
 
     def convert_datetime_2d(self):
         try:
@@ -115,10 +122,8 @@ class DataWindow2d(QWidget):
             for j in range(len(str_data[0])):
                 self.data_table.setItem(i, j, QTableWidgetItem(str_data[i, j]))
 
-
     def show_context_menu(self, point):
         utils.show_context_menu(self, point)
 
-
     def export_1d_2d(self):
-        utils.show_dialog_and_save(self, self.data)
+        utils.show_dialog_and_save(self, self.data, self.variable_name)

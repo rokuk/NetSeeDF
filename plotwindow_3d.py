@@ -4,8 +4,8 @@ from PyQt6.QtGui import QPixmap, QImage
 from matplotlib import pyplot as plt
 import numpy as np
 import numpy.ma as ma
-from offline_folium import offline
-import folium
+from offline_folium import offline # must be before import folium
+import folium # bust be after importing offline folium
 from PyQt6.QtCore import QUrl
 from netCDF4 import Dataset, num2date
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
@@ -14,7 +14,7 @@ from PyQt6.QtCore import Qt
 import base64
 
 
-class PlotWindow(QWidget):
+class PlotWindow3d(QWidget):
     def __init__(self, file_name, variable_name, file_path):
         super().__init__()
 
