@@ -1,17 +1,22 @@
 import io
+import tempfile
+import os
 
 from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtWebChannel import QWebChannel
+from branca.element import JavascriptLink
 from matplotlib import pyplot as plt
 import numpy as np
 import numpy.ma as ma
 from offline_folium import offline # must be before import folium
-import folium # bust be after importing offline folium
-from PyQt6.QtCore import QUrl
+import folium # must be after importing offline folium
 from netCDF4 import Dataset, num2date
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QUrl
 import base64
+
+import utils
 
 
 class PlotWindow3d(QWidget):
@@ -143,9 +148,22 @@ class PlotWindow3d(QWidget):
             opacity=0.5
         ).add_to(self.map)
 
-        folium.FitOverlays().add_to(self.map)  # fit the map view to the overlay size
-        html_data = self.map.get_root().render() # generate html for map
-        self.view.setHtml(html_data, QUrl("about:blank")) # display the html in the web view
+        folium.FitOverlays().add_to(self.map) # fit the map view to the overlay size
+
+        #html_data = self.map.get_root().render() # generate html for map
+        #self.view.setHtml(html_data, QUrl("about:blank")) # display the html in the web view
+
+        # setup channel to send click data from js to python
+        #channel = QWebChannel()
+        #receiver = utils.ClickReceiver()
+        #channel.registerObject('pyReceiver', receiver)
+        #self.view.page().setWebChannel(channel)
+
+        #self.map.get_root().add_child(JavascriptLink("qrc:///qtwebchannel/qwebchannel.js"))
+        self.map.add_child(utils.PopupOnClick())
+
+        html_data = self.map.get_root().render()
+        self.view.setHtml(html_data) # load the html
 
         # display colorbar
         qimage = QImage.fromData(colorbar)
@@ -153,7 +171,6 @@ class PlotWindow3d(QWidget):
         cbar = QLabel()
         cbar.setPixmap(pixmap)
         self.cbar = cbar
-
         maplayout.addWidget(cbar)
 
         layout.addWidget(mapwidget)

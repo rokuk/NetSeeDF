@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
-from PyQt6.QtCore import QAbstractTableModel, Qt
+from PyQt6.QtCore import QAbstractTableModel, Qt, QObject, pyqtSlot
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
-
+from folium import MacroElement
+from jinja2 import Template
 
 def show_context_menu(self, point):
     index = self.data_table.indexAt(point)
@@ -151,8 +152,32 @@ class SimpleTableModel(QAbstractTableModel):
         self.data = data
         self.endResetModel()
 
+class WebChannelJS(MacroElement):
+    with open("qwebchannel.js", "r") as f:
+        webchanneljs = f.read()
+    _template = Template("{% macro script(this, kwargs) %}" + webchanneljs + "{% endmacro %}")
 
+    def __init__(self):
+        super().__init__()
 
+class ClickReceiver(QObject):
+    @pyqtSlot(float, float)
+    def onMapClick(self, lat, lng):
+        print(f"Clicked at: {lat}, {lng}")
+
+class PopupOnClick(MacroElement):
+    _template = Template("""
+            {% macro script(this, kwargs) %}
+            {{this._parent.get_name()}}.on('click', function(e) {
+                var popup = L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent('<b>Custom text here</b><br><button onclick="alert(\\'Button clicked!\\')">Click me</button>')
+                    .openOn({{this._parent.get_name()}});
+            });
+            {% endmacro %}
+        """)
+    def __init__(self):
+        super().__init__()
 
 
 
