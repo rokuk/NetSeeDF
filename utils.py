@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+from pandas import DataFrame
 from PyQt6.QtCore import QAbstractTableModel, Qt, QObject, pyqtSlot
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
@@ -17,12 +17,12 @@ def show_context_menu(self, point):
             QApplication.clipboard().setText(str(value))
 
 
-def show_dialog_and_save(self, selected_data, suggested_filename):
+def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=True):
     dialog = QFileDialog(self, "Save File")
     dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
     dialog.setNameFilters(["Excel File (*.xlsx)", "CSV File (*.csv)", "Text File (*.txt)"])
     dialog.setDefaultSuffix("xlsx")
-    dialog.setDirectory(self.last_directory)  # Use last directory
+    if use_last_dir: dialog.setDirectory(self.last_directory)  # Use last directory
     dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, False)
     dialog.selectFile(suggested_filename)
 
@@ -47,7 +47,7 @@ def show_dialog_and_save(self, selected_data, suggested_filename):
                 file_path += ext
 
             # Update last directory
-            self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
+            if use_last_dir: self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
 
             try:
                 # Save example content based on file type
@@ -56,7 +56,7 @@ def show_dialog_and_save(self, selected_data, suggested_filename):
                 elif ext == ".csv":
                     np.savetxt(file_path, selected_data, delimiter=",", fmt="%s")
                 elif ext == ".xlsx":
-                    df = pd.DataFrame(selected_data)
+                    df = DataFrame(selected_data)
                     df.to_excel(file_path, index=False, header=False)
             except Exception:
                 dlg = QMessageBox(self)
@@ -152,42 +152,71 @@ class SimpleTableModel(QAbstractTableModel):
         self.data = data
         self.endResetModel()
 
-class WebChannelJS(MacroElement):
-    with open("qwebchannel.js", "r") as f:
-        webchanneljs = f.read()
-    _template = Template("{% macro script(this, kwargs) %}" + webchanneljs + "{% endmacro %}")
 
-    def __init__(self):
+def find_closest_grid_point(lat, lon, x, y):
+    i = np.abs(x - lon).argmin()
+    j = np.abs(y - lat).argmin()
+    return i, j
+
+class Backend(QObject):
+    def __init__(self, data, alldata, xdata, ydata, x_dim_index, y_dim_index, slice_dim_index, slice_max_index, show_map_popup, window_instance):
         super().__init__()
+        self.data = data
+        self.alldata = alldata
+        self.xdata = xdata
+        self.ydata = ydata
+        self.x_dim_index = x_dim_index
+        self.y_dim_index = y_dim_index
+        self.slice_dim_index = slice_dim_index
+        self.slice_max_index = slice_max_index
+        self.show_map_popup = show_map_popup
+        self.window_instance = window_instance
+        self.last_gridi = 0
+        self.last_gridj = 0
 
-class ClickReceiver(QObject):
+    def set_data(self, data):
+        self.data = data
+
     @pyqtSlot(float, float)
-    def onMapClick(self, lat, lng):
-        print(f"Clicked at: {lat}, {lng}")
+    def on_map_click(self, lat, lon):
+        # check if coordinates are inside the bounds of the data, if outside do nothing
+        if (self.xdata.min() < lon < self.xdata.max()) and (self.ydata.min() < lat < self.ydata.max()):
+            gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
+            gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
+            self.last_gridi, self.last_gridj = gridi, gridj
+            self.show_map_popup(gridlat, gridlon, gridval) # show popup with lat, lon and value of the closest grid point
 
-class PopupOnClick(MacroElement):
+    @pyqtSlot()
+    def on_export_requested(self):
+        # slice the data with the selected grid indexes (from on_map_click)
+        idx = [slice(None)] * 3 # sorry, but it works
+        idx[self.x_dim_index] = self.last_gridi
+        idx[self.y_dim_index] = self.last_gridj
+        idx[self.slice_dim_index] = ...
+
+        print(idx)
+
+        timeseries = self.alldata[tuple(idx)]
+
+        show_dialog_and_save(self.window_instance, timeseries, "timeseries", False)
+
+class WebChannelJS(MacroElement):
     _template = Template("""
             {% macro script(this, kwargs) %}
+            function setupWebChannel() {
+                if (typeof qt !== "undefined" && typeof QWebChannel !== "undefined") {
+                    new QWebChannel(qt.webChannelTransport, function(channel) {
+                        window.backend = channel.objects.backend;
+                    });
+                } else {
+                    alert("qt or QWebChannel is not defined");
+                }
+            }
+            document.addEventListener('DOMContentLoaded', setupWebChannel, false);
             {{this._parent.get_name()}}.on('click', function(e) {
-                var popup = L.popup()
-                    .setLatLng(e.latlng)
-                    .setContent('<b>Custom text here</b><br><button onclick="alert(\\'Button clicked!\\')">Click me</button>')
-                    .openOn({{this._parent.get_name()}});
+                window.backend.on_map_click(e.latlng.lat, e.latlng.lng);
             });
             {% endmacro %}
         """)
     def __init__(self):
         super().__init__()
-
-
-
-
-
-
-
-
-
-
-
-
-

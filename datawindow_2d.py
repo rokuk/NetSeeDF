@@ -43,6 +43,8 @@ class DataWindow2d(QWidget):
         except Exception:
             pass
 
+        print(ncfile.variables)
+
         # display calendar type if given the NetCDF file
         try:
             if variable_data.calendar is not None:

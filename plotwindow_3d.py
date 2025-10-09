@@ -1,10 +1,9 @@
 import io
-import tempfile
-import os
 
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWebChannel import QWebChannel
-from branca.element import JavascriptLink
+from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
+from folium import Element
 from matplotlib import pyplot as plt
 import numpy as np
 import numpy.ma as ma
@@ -13,7 +12,7 @@ import folium # must be after importing offline folium
 from netCDF4 import Dataset, num2date
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import Qt
 import base64
 
 import utils
@@ -67,10 +66,11 @@ class PlotWindow3d(QWidget):
 
         self.slice_dim_index = slice_dim_index
 
-        # get x and y axis variable data
+        # get x, y and time axis variable data
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+        self.tsize = ncfile.variables[variable_data.dimensions[slice_dim_index]].size
 
         try:
             self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
@@ -124,6 +124,10 @@ class PlotWindow3d(QWidget):
 
         ncfile.close()
 
+        scheme = QWebEngineUrlScheme(b'qrc')
+        scheme.setFlags(QWebEngineUrlScheme.Flag.LocalScheme | QWebEngineUrlScheme.Flag.LocalAccessAllowed)
+        QWebEngineUrlScheme.registerScheme(scheme)
+
         # Folium map
         self.map = folium.Map(location=[0, 0], zoom_start=1)
         self.map._name = "folium"
@@ -141,26 +145,27 @@ class PlotWindow3d(QWidget):
 
         image, colorbar = self.getb64image(sliced_data)
 
-        # Map raster layer
+        # map raster layer
         folium.raster_layers.ImageOverlay(
             image="data:image/png;base64," + image,
             bounds=[[np.min(self.ydata), np.min(self.xdata)], [np.max(self.ydata), np.max(self.xdata)]],
             opacity=0.5
         ).add_to(self.map)
 
-        folium.FitOverlays().add_to(self.map) # fit the map view to the overlay size
+        folium.FitOverlays().add_to(self.map) # fit the view to the overlay size
 
-        #html_data = self.map.get_root().render() # generate html for map
-        #self.view.setHtml(html_data, QUrl("about:blank")) # display the html in the web view
+        # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
+        self.channel = QWebChannel()
+        self.backend = utils.Backend(sliced_data, self.data, self.xdata, self.ydata, x_dim_index, y_dim_index, slice_dim_index, self.tsize, self.show_map_popup, self)
+        self.channel.registerObject('backend', self.backend)
+        self.view.page().setWebChannel(self.channel)
 
-        # setup channel to send click data from js to python
-        #channel = QWebChannel()
-        #receiver = utils.ClickReceiver()
-        #channel.registerObject('pyReceiver', receiver)
-        #self.view.page().setWebChannel(channel)
+        with open("qwebchannel.js") as f:
+            webchanneljs = f.read()
 
-        #self.map.get_root().add_child(JavascriptLink("qrc:///qtwebchannel/qwebchannel.js"))
-        self.map.add_child(utils.PopupOnClick())
+        scriptelement = Element('<script>' + webchanneljs + '</script>')
+        self.map.get_root().html.add_child(scriptelement)
+        self.map.add_child(utils.WebChannelJS())
 
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data) # load the html
@@ -178,6 +183,13 @@ class PlotWindow3d(QWidget):
         self.setLayout(layout)
 
 
+    def show_map_popup(self, lat, lon, value):
+        js_code = """L.popup()
+                    .setLatLng(L.latLng({latval},{lonval}))
+                    .setContent('{latval}°, {lonval}°<br>{pointval}<br><button onclick="window.backend.on_export_requested();">Export data for this point</button>')
+                    .openOn(folium_1);""".format(latval=lat, lonval=lon, pointval=value)
+        self.view.page().runJavaScript(js_code)
+
     def update_map(self):
         slice_index = self.slice_spinner.value() # get the index of the slice from the spinner
 
@@ -190,6 +202,7 @@ class PlotWindow3d(QWidget):
 
         sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
         sliced_data = ma.masked_equal(sliced_data, self.fill_value) # mask missing values (given by the _FillValue in the NetCDF file)
+        self.backend.set_data(sliced_data) # send the sliced data to the backend instance
 
         # generate images
         image, colorbar = self.getb64image(sliced_data)

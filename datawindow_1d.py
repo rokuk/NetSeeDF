@@ -60,6 +60,8 @@ class DataWindow1d(QWidget):
         data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.data_table = data_table
 
+        print(data)
+
         str_data = data.astype(str)
         if self.has_units:  # the data in the table has degrees displayed if the units are degrees
             if variable_data.units == "degrees_east" or variable_data.units == "degrees_north":
