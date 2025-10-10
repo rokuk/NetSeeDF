@@ -1,10 +1,12 @@
 import numpy as np
-from pandas import DataFrame
 from PyQt6.QtCore import QAbstractTableModel, Qt, QObject, pyqtSlot
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
 from folium import MacroElement
 from jinja2 import Template
+from netCDF4 import num2date
+from pandas import DataFrame
+
 
 def show_context_menu(self, point):
     index = self.data_table.indexAt(point)
@@ -50,14 +52,15 @@ def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=T
             if use_last_dir: self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
 
             try:
-                # Save example content based on file type
+                if not isinstance(selected_data, DataFrame):
+                    selected_data = DataFrame(selected_data)
+
                 if ext == ".txt":
-                    np.savetxt(file_path, selected_data, delimiter="\t")
+                    selected_data.to_csv(file_path, index=False, header=False, sep=" ")
                 elif ext == ".csv":
-                    np.savetxt(file_path, selected_data, delimiter=",", fmt="%s")
+                    selected_data.to_csv(file_path, index=False, header=False)
                 elif ext == ".xlsx":
-                    df = DataFrame(selected_data)
-                    df.to_excel(file_path, index=False, header=False)
+                    selected_data.to_excel(file_path, index=False, header=False)
             except Exception:
                 dlg = QMessageBox(self)
                 dlg.setWindowTitle("NetSeeDF message")
@@ -104,13 +107,13 @@ class TableModel(QAbstractTableModel):
 
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole:
-            if self.label_headers: # label headers
+            if self.label_headers:  # label headers
                 if orientation == Qt.Orientation.Horizontal:
                     return str(self.xlabels[section])
                 if orientation == Qt.Orientation.Vertical:
                     return str(self.ylabels[section])
-            else: # do not label headers
-                return str(section+1)
+            else:  # do not label headers
+                return str(section + 1)
         return None
 
     def show_label_headers(self, label_headers):
@@ -126,6 +129,7 @@ class TableModel(QAbstractTableModel):
 
     def get_ywidth(self, data_table):
         return get_max_width(data_table, self.ylabels)
+
 
 class SimpleTableModel(QAbstractTableModel):
     def __init__(self, data):
@@ -158,17 +162,21 @@ def find_closest_grid_point(lat, lon, x, y):
     j = np.abs(y - lat).argmin()
     return i, j
 
+
 class Backend(QObject):
-    def __init__(self, data, alldata, xdata, ydata, x_dim_index, y_dim_index, slice_dim_index, slice_max_index, show_map_popup, window_instance):
+    def __init__(self, data, alldata, xdata, ydata, tdata, tunits, calendar, x_dim_index, y_dim_index, slice_dim_index,
+                 show_map_popup, window_instance):
         super().__init__()
         self.data = data
         self.alldata = alldata
         self.xdata = xdata
         self.ydata = ydata
+        self.tdata = tdata
+        self.tunits = tunits
+        self.calendar = calendar
         self.x_dim_index = x_dim_index
         self.y_dim_index = y_dim_index
         self.slice_dim_index = slice_dim_index
-        self.slice_max_index = slice_max_index
         self.show_map_popup = show_map_popup
         self.window_instance = window_instance
         self.last_gridi = 0
@@ -184,21 +192,29 @@ class Backend(QObject):
             gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
             gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
             self.last_gridi, self.last_gridj = gridi, gridj
-            self.show_map_popup(gridlat, gridlon, gridval) # show popup with lat, lon and value of the closest grid point
+            self.show_map_popup(gridlat, gridlon,
+                                gridval)  # show popup with lat, lon and value of the closest grid point
 
     @pyqtSlot()
     def on_export_requested(self):
         # slice the data with the selected grid indexes (from on_map_click)
-        idx = [slice(None)] * 3 # sorry, but it works
+        idx = [slice(None)] * 3  # sorry, but it works
         idx[self.x_dim_index] = self.last_gridi
         idx[self.y_dim_index] = self.last_gridj
         idx[self.slice_dim_index] = ...
+        timeseries = self.alldata[tuple(idx)]  # slice the data for the grid point to get the timeseries
 
-        print(idx)
+        if self.tunits is not None and self.calendar is not None:
+            datetimes = num2date(self.tdata, self.tunits, self.calendar)
+        else:
+            datetimes = self.tdata
 
-        timeseries = self.alldata[tuple(idx)]
+        df = DataFrame({"time": datetimes, "variable": timeseries})
 
-        show_dialog_and_save(self.window_instance, timeseries, "timeseries", False)
+        show_dialog_and_save(self.window_instance, df, "timeseries", False)
+
+        self.window_instance.close_map_popups()
+
 
 class WebChannelJS(MacroElement):
     _template = Template("""
@@ -218,5 +234,6 @@ class WebChannelJS(MacroElement):
             });
             {% endmacro %}
         """)
+
     def __init__(self):
         super().__init__()

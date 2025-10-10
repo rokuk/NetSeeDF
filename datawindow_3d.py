@@ -69,6 +69,8 @@ class DataWindow3d(QWidget):
         # try to find which dimension is at which index in the NetCDF data
         if "time" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("time")
+        elif "Time" in variable_data.dimensions:
+            slice_dim_index = variable_data.dimensions.index("Time")
         elif "T" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("T")
         if "lon" in variable_data.dimensions:

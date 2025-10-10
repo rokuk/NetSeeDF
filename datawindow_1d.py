@@ -60,8 +60,6 @@ class DataWindow1d(QWidget):
         data_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.data_table = data_table
 
-        print(data)
-
         str_data = data.astype(str)
         if self.has_units:  # the data in the table has degrees displayed if the units are degrees
             if variable_data.units == "degrees_east" or variable_data.units == "degrees_north":
@@ -71,6 +69,7 @@ class DataWindow1d(QWidget):
         data_table.setColumnCount(1)
         for i in range(len(data)):
             data_table.setItem(i, 0, QTableWidgetItem(str_data[i]))
+        data_table.resizeColumnsToContents()
 
         export_widget = QWidget()
         export_layout = QHBoxLayout()
@@ -80,7 +79,7 @@ class DataWindow1d(QWidget):
 
         if "calendar" in variable_data.ncattrs() and "units" in variable_data.ncattrs():
             try:
-                slice_dates = num2date(data, variable_data.units, variable_data.calendar)
+                _ = num2date(data, variable_data.units, variable_data.calendar)
                 self.tunits = variable_data.units
                 self.calendar = variable_data.calendar
                 self.can_convert_datetime = True

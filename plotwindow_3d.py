@@ -1,19 +1,18 @@
+import base64
 import io
 
+import folium  # must be after importing offline folium
+import numpy as np
+import numpy.ma as ma
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
 from folium import Element
 from matplotlib import pyplot as plt
-import numpy as np
-import numpy.ma as ma
-from offline_folium import offline # must be before import folium
-import folium # must be after importing offline folium
 from netCDF4 import Dataset, num2date
-from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import Qt
-import base64
 
 import utils
 
@@ -28,10 +27,14 @@ class PlotWindow3d(QWidget):
         self.file_path = file_path
         self.variable_name = variable_name
         self.can_convert_datetime = False
+        self.has_units = False
+        self.variable_units = None
+        self.tunits = None
+        self.calendar = None
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
-        data = np.array(variable_data[:]) # cast data to a numpy array
+        data = np.array(variable_data[:])  # cast data to a numpy array
 
         self.fill_value = variable_data.get_fill_value()
         self.data = data
@@ -43,6 +46,8 @@ class PlotWindow3d(QWidget):
         # try to find which dimension is at which index in the NetCDF data
         if "time" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("time")
+        elif "Time" in variable_data.dimensions:
+            slice_dim_index = variable_data.dimensions.index("Time")
         elif "T" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("T")
 
@@ -70,7 +75,6 @@ class PlotWindow3d(QWidget):
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
-        self.tsize = ncfile.variables[variable_data.dimensions[slice_dim_index]].size
 
         try:
             self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
@@ -88,6 +92,7 @@ class PlotWindow3d(QWidget):
         try:
             unit_label = QLabel("Units: \t\t" + variable_data.units)
             self.has_units = True
+            self.variable_units = variable_data.units
             layout.addWidget(unit_label)
         except Exception:
             pass
@@ -100,14 +105,16 @@ class PlotWindow3d(QWidget):
         slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
-        slice_spinner.setMaximum(variable_data.shape[slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
+        slice_spinner.setMaximum(variable_data.shape[
+                                     slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
         slice_spinner.setValue(0)
         slice_spinner.valueChanged.connect(self.update_map)
         self.slice_spinner = slice_spinner
         slice_selector_layout.addWidget(slice_spinner)
 
         try:
-            units = ncfile.variables[variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
+            units = ncfile.variables[
+                variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
             self.tunits = units
         except Exception:  # in case the units are not included in the file
             pass
@@ -117,7 +124,7 @@ class PlotWindow3d(QWidget):
             self.slice_date_label = QLabel(str(slice_date))
             slice_selector_layout.addWidget(self.slice_date_label)
             self.can_convert_datetime = True
-        except Exception: # in case the calendar or units are not available
+        except Exception:  # in case the calendar or units are not available
             pass
 
         layout.addWidget(slice_selector_widget)
@@ -152,11 +159,12 @@ class PlotWindow3d(QWidget):
             opacity=0.5
         ).add_to(self.map)
 
-        folium.FitOverlays().add_to(self.map) # fit the view to the overlay size
+        folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size
 
         # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
         self.channel = QWebChannel()
-        self.backend = utils.Backend(sliced_data, self.data, self.xdata, self.ydata, x_dim_index, y_dim_index, slice_dim_index, self.tsize, self.show_map_popup, self)
+        self.backend = utils.Backend(sliced_data, self.data, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
+                                     slice_dim_index, self.show_map_popup, self)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
@@ -168,7 +176,7 @@ class PlotWindow3d(QWidget):
         self.map.add_child(utils.WebChannelJS())
 
         html_data = self.map.get_root().render()
-        self.view.setHtml(html_data) # load the html
+        self.view.setHtml(html_data)  # load the html
 
         # display colorbar
         qimage = QImage.fromData(colorbar)
@@ -182,7 +190,6 @@ class PlotWindow3d(QWidget):
 
         self.setLayout(layout)
 
-
     def show_map_popup(self, lat, lon, value):
         js_code = """L.popup()
                     .setLatLng(L.latLng({latval},{lonval}))
@@ -190,8 +197,11 @@ class PlotWindow3d(QWidget):
                     .openOn(folium_1);""".format(latval=lat, lonval=lon, pointval=value)
         self.view.page().runJavaScript(js_code)
 
+    def close_map_popups(self):
+        self.view.page().runJavaScript("folium_1.closePopup();")
+
     def update_map(self):
-        slice_index = self.slice_spinner.value() # get the index of the slice from the spinner
+        slice_index = self.slice_spinner.value()  # get the index of the slice from the spinner
 
         if self.can_convert_datetime:
             try:
@@ -201,8 +211,9 @@ class PlotWindow3d(QWidget):
                 pass
 
         sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
-        sliced_data = ma.masked_equal(sliced_data, self.fill_value) # mask missing values (given by the _FillValue in the NetCDF file)
-        self.backend.set_data(sliced_data) # send the sliced data to the backend instance
+        sliced_data = ma.masked_equal(sliced_data,
+                                      self.fill_value)  # mask missing values (given by the _FillValue in the NetCDF file)
+        self.backend.set_data(sliced_data)  # send the sliced data to the backend instance
 
         # generate images
         image, colorbar = self.getb64image(sliced_data)
@@ -215,13 +226,20 @@ class PlotWindow3d(QWidget):
         pixmap = QPixmap.fromImage(qimage)
         self.cbar.setPixmap(pixmap)
 
-
     def getb64image(self, image_data):
         image = io.BytesIO()
         colorbar = io.BytesIO()
 
         plt.figure()
-        mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="auto")
+
+        if self.has_units:
+            if self.variable_units in ["mm", "day"]: # set the color scale minimum value to 0
+                mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest", vmin=0)
+            else:
+                mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest")
+        else:
+            mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest")
+
         plt.axis("off")
         plt.savefig(image, format="png", bbox_inches="tight")
 
