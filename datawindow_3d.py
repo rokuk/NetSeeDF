@@ -1,9 +1,10 @@
-import numpy as np
-from netCDF4 import Dataset, num2date
-from PyQt6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
-    QHBoxLayout, QSpinBox, QPushButton, QTableView
-from PyQt6.QtCore import Qt
 from pathlib import Path
+
+import numpy as np
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
+    QHBoxLayout, QSpinBox, QPushButton, QTableView, QMessageBox, QComboBox
+from netCDF4 import Dataset, num2date
 
 import utils
 
@@ -18,15 +19,16 @@ class DataWindow3d(QWidget):
         self.setMinimumSize(200, 500)
 
         self.last_directory = str(Path.home())
+        self.file_path = file_path
         self.variable_name = variable_name
         self.can_convert_datetime = False
+        self.has_units = False
+        self.variable_units = None
+        self.units_are_kelvin = False
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
-        data = np.array(variable_data[:])  # cast data to a numpy array
-
         self.fill_value = variable_data.get_fill_value()
-        self.data = data
 
         layout = QVBoxLayout()
         file_label = QLabel("File: \t\t" + file_name)
@@ -37,6 +39,8 @@ class DataWindow3d(QWidget):
         # display units of the variable if given in the NetCDF file
         try:
             unit_label = QLabel("Units: \t\t" + variable_data.units)
+            self.has_units = True
+            self.variable_units = variable_data.units
             layout.addWidget(unit_label)
         except Exception:
             pass
@@ -73,12 +77,20 @@ class DataWindow3d(QWidget):
             slice_dim_index = variable_data.dimensions.index("Time")
         elif "T" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("T")
+        elif "valid_time" in variable_data.dimensions:
+            slice_dim_index = variable_data.dimensions.index("valid_time")
+
         if "lon" in variable_data.dimensions:
             x_dim_index = variable_data.dimensions.index("lon")
+        elif "longitude" in variable_data.dimensions:
+            x_dim_index = variable_data.dimensions.index("longitude")
         elif "X" in variable_data.dimensions:
             x_dim_index = variable_data.dimensions.index("X")
+
         if "lat" in variable_data.dimensions:
             y_dim_index = variable_data.dimensions.index("lat")
+        elif "latitude" in variable_data.dimensions:
+            y_dim_index = variable_data.dimensions.index("latitude")
         elif "Y" in variable_data.dimensions:
             y_dim_index = variable_data.dimensions.index("Y")
 
@@ -124,7 +136,8 @@ class DataWindow3d(QWidget):
         slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + ": "))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
-        slice_spinner.setMaximum(variable_data.shape[slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
+        slice_spinner.setMaximum(variable_data.shape[
+                                     slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
         slice_spinner.setValue(0)
         slice_spinner.valueChanged.connect(self.update_table)
         self.slice_spinner = slice_spinner
@@ -150,14 +163,21 @@ class DataWindow3d(QWidget):
 
         try:
             units = ncfile.variables[
-                variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
+                variable_data.dimensions[slice_dim_index]
+            ].units  # get units of the slicing variable
             self.tunits = units
         except Exception:  # in case the units are not included in the file
             pass
 
         try:
-            slice_date = num2date(self.tdata[0], self.tunits, self.calendar)
-            self.slice_date_label = QLabel(" =  " + str(slice_date))
+            slice_dates = num2date(self.tdata, self.tunits, self.calendar)
+
+            slice_date_combobox = QComboBox()
+            slice_date_combobox.addItems(slice_dates)
+
+            self.slice_date_combobox = slice_date_combobox
+
+            # self.slice_date_label = QLabel(" =  " + str(slice_date))
             slice_selector_layout.addWidget(self.slice_date_label)
             self.can_convert_datetime = True
         except Exception:  # in case the calendar or units are not available
@@ -166,6 +186,20 @@ class DataWindow3d(QWidget):
         axis_selectors_layout.addWidget(labels_selector)
         axis_selectors_widget.setLayout(axis_selectors_layout)
         layout.addWidget(axis_selectors_widget)
+
+        if self.has_units:
+            if self.variable_units == "K":
+                temp_convert_widget = QWidget()
+                temp_convert_layout = QHBoxLayout()
+                temp_convert_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                temp_convert_widget.setLayout(temp_convert_layout)
+                temp_convert_checkbox = QCheckBox()
+                temp_convert_checkbox.checkStateChanged.connect(self.on_convert_temp)
+                self.temp_convert_checkbox = temp_convert_checkbox
+                temp_convert_layout.addWidget(temp_convert_checkbox)
+                temp_convert_layout.addWidget(QLabel("convert to °C"))
+                self.units_are_kelvin = True
+                layout.addWidget(temp_convert_widget)
 
         # set up the table model and load initial data
         initial_data = self.get_selected_data().astype(str)
@@ -200,18 +234,39 @@ class DataWindow3d(QWidget):
 
         self.setLayout(layout)
 
-
     def get_selected_data(self):
         slice_index = self.slice_spinner.value()
-        sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
-        sliced_data[sliced_data == self.fill_value] = np.nan  # replace fill values with numpy's NaN
-        return sliced_data
 
+        ncfile = Dataset(self.file_path, "r")
+        variable_data = ncfile.variables[self.variable_name]
+        if self.slice_dim_index == 0: # select the slice and read it into memory from disk
+            sliced_data = variable_data[slice_index, :, :]
+        elif self.slice_dim_index == 1:
+            sliced_data = variable_data[:, slice_index, :]
+        else:
+            sliced_data = variable_data[:, :, slice_index]
+        ncfile.close()
+
+        return np.where(sliced_data == self.fill_value, np.nan, sliced_data) # replace fill values with numpy's NaN
 
     def update_table(self):
         # get data for the new slice and update table with it
-        slice_2d = self.get_selected_data().astype(str)
-        self.model.set_data(slice_2d)
+        slice_2d = self.get_selected_data()
+
+        if self.has_units:
+            if self.units_are_kelvin:
+                if self.temp_convert_checkbox.isChecked():
+                    try:
+                        slice_2d = slice_2d - 273.15
+                    except Exception:
+                        self.temp_convert_checkbox.setChecked(False)
+                        dlg = QMessageBox(self)
+                        dlg.setWindowTitle("NetSeeDF message")
+                        dlg.setText("There was an error while converting to degrees Celsius!")
+                        dlg.exec()
+                        return
+
+        self.model.set_data(slice_2d.astype(str))
         self.data_table.update()
 
         # calculate and display new slice datetime (if able to calculate datetime)
@@ -220,15 +275,15 @@ class DataWindow3d(QWidget):
             slice_date = num2date(self.tdata[slice_index], self.tunits, self.calendar)
             self.slice_date_label.setText(" =  " + str(slice_date))
 
-
     def update_headers(self):
         self.model.show_label_headers(self.labels_checkbox.isChecked())
         self.data_table.update()
 
+    def on_convert_temp(self):
+        self.update_table()
 
     def show_context_menu(self, point):
         utils.show_context_menu(self, point)
-
 
     def export_3d(self):
         suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())
