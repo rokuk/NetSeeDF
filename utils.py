@@ -4,7 +4,7 @@ from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
 from folium import MacroElement
 from jinja2 import Template
-from netCDF4 import num2date
+from netCDF4 import num2date, Dataset
 from pandas import DataFrame
 
 
@@ -164,11 +164,11 @@ def find_closest_grid_point(lat, lon, x, y):
 
 
 class Backend(QObject):
-    def __init__(self, data, alldata, xdata, ydata, tdata, tunits, calendar, x_dim_index, y_dim_index, slice_dim_index,
+    def __init__(self, file_path, variable_name, xdata, ydata, tdata, tunits, calendar, x_dim_index, y_dim_index, slice_dim_index,
                  show_map_popup, window_instance):
         super().__init__()
-        self.data = data
-        self.alldata = alldata
+        self.file_path = file_path
+        self.variable_name = variable_name
         self.xdata = xdata
         self.ydata = ydata
         self.tdata = tdata
@@ -181,6 +181,7 @@ class Backend(QObject):
         self.window_instance = window_instance
         self.last_gridi = 0
         self.last_gridj = 0
+        self.data = None
 
     def set_data(self, data):
         self.data = data
@@ -202,7 +203,19 @@ class Backend(QObject):
         idx[self.x_dim_index] = self.last_gridi
         idx[self.y_dim_index] = self.last_gridj
         idx[self.slice_dim_index] = ...
-        timeseries = self.alldata[tuple(idx)]  # slice the data for the grid point to get the timeseries
+
+        ncfile = Dataset(self.file_path, "r")
+        variable_data = ncfile.variables[self.variable_name]
+        timeseries = variable_data[tuple(idx)]  # slice the data for the grid point to get the timeseries
+        ncfile.close()
+
+        if self.window_instance.has_units:
+            if self.window_instance.variable_units == "K":
+                if self.window_instance.temp_convert_checkbox.isChecked():
+                    try:
+                        timeseries = timeseries - 273.15
+                    except Exception:
+                        pass
 
         if self.tunits is not None and self.calendar is not None:
             datetimes = num2date(self.tdata, self.tunits, self.calendar)

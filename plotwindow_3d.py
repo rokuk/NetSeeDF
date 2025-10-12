@@ -9,10 +9,15 @@ from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
 from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox
+from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
 from folium import Element
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
+from cartopy import crs as ccrs
+import matplotlib.style as mplstyle
+from matplotlib import use as mpluse
+mplstyle.use('fast')
+mpluse("agg")
 
 import utils
 
@@ -31,13 +36,12 @@ class PlotWindow3d(QWidget):
         self.variable_units = None
         self.tunits = None
         self.calendar = None
+        self.units_are_kelvin = False
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
-        data = np.array(variable_data[:])  # cast data to a numpy array
-
         self.fill_value = variable_data.get_fill_value()
-        self.data = data
+
         # defaults for the indices of dimensions in the NetCDF file data
         slice_dim_index = 0
         x_dim_index = 1
@@ -50,14 +54,20 @@ class PlotWindow3d(QWidget):
             slice_dim_index = variable_data.dimensions.index("Time")
         elif "T" in variable_data.dimensions:
             slice_dim_index = variable_data.dimensions.index("T")
+        elif "valid_time" in variable_data.dimensions:
+            slice_dim_index = variable_data.dimensions.index("valid_time")
 
         if "lon" in variable_data.dimensions:
             x_dim_index = variable_data.dimensions.index("lon")
+        elif "longitude" in variable_data.dimensions:
+            x_dim_index = variable_data.dimensions.index("longitude")
         elif "X" in variable_data.dimensions:
             x_dim_index = variable_data.dimensions.index("X")
 
         if "lat" in variable_data.dimensions:
             y_dim_index = variable_data.dimensions.index("lat")
+        elif "latitude" in variable_data.dimensions:
+            y_dim_index = variable_data.dimensions.index("latitude")
         elif "Y" in variable_data.dimensions:
             y_dim_index = variable_data.dimensions.index("Y")
 
@@ -101,8 +111,7 @@ class PlotWindow3d(QWidget):
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         slice_selector_widget.setLayout(slice_selector_layout)
-        slice_selector_layout.addWidget(QLabel("Slice: "))
-        slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + "  ="))
+        slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + ": "))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
         slice_spinner.setMaximum(variable_data.shape[
@@ -111,6 +120,7 @@ class PlotWindow3d(QWidget):
         slice_spinner.valueChanged.connect(self.update_map)
         self.slice_spinner = slice_spinner
         slice_selector_layout.addWidget(slice_spinner)
+        slice_selector_layout.addWidget(QLabel(" of " + str(variable_data.shape[slice_dim_index] - 1)))
 
         try:
             units = ncfile.variables[
@@ -121,7 +131,7 @@ class PlotWindow3d(QWidget):
 
         try:
             slice_date = num2date(self.tdata[0], self.tunits, self.calendar)
-            self.slice_date_label = QLabel(str(slice_date))
+            self.slice_date_label = QLabel(" =  " + str(slice_date))
             slice_selector_layout.addWidget(self.slice_date_label)
             self.can_convert_datetime = True
         except Exception:  # in case the calendar or units are not available
@@ -129,33 +139,62 @@ class PlotWindow3d(QWidget):
 
         layout.addWidget(slice_selector_widget)
 
+        if self.has_units:
+            if self.variable_units == "K":
+                temp_convert_widget = QWidget()
+                temp_convert_layout = QHBoxLayout()
+                temp_convert_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+                temp_convert_widget.setLayout(temp_convert_layout)
+                temp_convert_checkbox = QCheckBox()
+                temp_convert_checkbox.checkStateChanged.connect(self.on_convert_temp)
+                self.temp_convert_checkbox = temp_convert_checkbox
+                temp_convert_layout.addWidget(temp_convert_checkbox)
+                temp_convert_layout.addWidget(QLabel("convert to °C"))
+                self.units_are_kelvin = True
+                layout.addWidget(temp_convert_widget)
+
         ncfile.close()
 
         scheme = QWebEngineUrlScheme(b'qrc')
         scheme.setFlags(QWebEngineUrlScheme.Flag.LocalScheme | QWebEngineUrlScheme.Flag.LocalAccessAllowed)
         QWebEngineUrlScheme.registerScheme(scheme)
 
-        # Folium map
+        # folium map
         self.map = folium.Map(location=[0, 0], zoom_start=1)
         self.map._name = "folium"
         self.map._id = "1"
 
         self.view = QWebEngineView()
+        self.view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         mapwidget = QWidget()
         maplayout = QHBoxLayout()
         mapwidget.setLayout(maplayout)
         maplayout.addWidget(self.view)
 
-        # Intial data load
-        sliced_data = self.data.take(0, axis=self.slice_dim_index)
+        # intial data load
+        ncfile = Dataset(self.file_path, "r")
+        variable_data = ncfile.variables[self.variable_name]
+        if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
+            sliced_data = variable_data[0, :, :]
+        elif self.slice_dim_index == 1:
+            sliced_data = variable_data[:, 0, :]
+        else:
+            sliced_data = variable_data[:, :, 0]
+        ncfile.close()
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
 
         image, colorbar = self.getb64image(sliced_data)
 
         # map raster layer
+        xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
+        if ymin < -85:
+            ymin = -85
+        if ymax > 85:
+            ymax = 85
+
         folium.raster_layers.ImageOverlay(
             image="data:image/png;base64," + image,
-            bounds=[[np.min(self.ydata), np.min(self.xdata)], [np.max(self.ydata), np.max(self.xdata)]],
+            bounds=[[ymin, xmin], [ymax, xmax]],
             opacity=0.5
         ).add_to(self.map)
 
@@ -163,8 +202,9 @@ class PlotWindow3d(QWidget):
 
         # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
         self.channel = QWebChannel()
-        self.backend = utils.Backend(sliced_data, self.data, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
+        self.backend = utils.Backend(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
                                      slice_dim_index, self.show_map_popup, self)
+        self.backend.set_data(sliced_data)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
@@ -184,6 +224,7 @@ class PlotWindow3d(QWidget):
         cbar = QLabel()
         cbar.setPixmap(pixmap)
         self.cbar = cbar
+
         maplayout.addWidget(cbar)
 
         layout.addWidget(mapwidget)
@@ -206,14 +247,35 @@ class PlotWindow3d(QWidget):
         if self.can_convert_datetime:
             try:
                 slice_date = num2date(self.tdata[slice_index], self.tunits, self.calendar)
-                self.slice_date_label.setText(str(slice_date))
+                self.slice_date_label.setText(" =  " + str(slice_date))
             except Exception:
                 pass
 
-        sliced_data = self.data.take(slice_index, axis=self.slice_dim_index)  # subset data with the current slice index
-        sliced_data = ma.masked_equal(sliced_data,
-                                      self.fill_value)  # mask missing values (given by the _FillValue in the NetCDF file)
-        self.backend.set_data(sliced_data)  # send the sliced data to the backend instance
+        ncfile = Dataset(self.file_path, "r")
+        variable_data = ncfile.variables[self.variable_name]
+        if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
+            sliced_data = variable_data[slice_index, :, :]
+        elif self.slice_dim_index == 1:
+            sliced_data = variable_data[:, slice_index, :]
+        else:
+            sliced_data = variable_data[:, :, slice_index]
+        ncfile.close()
+        sliced_data = ma.masked_equal(sliced_data, self.fill_value)  # mask missing values (given by the _FillValue in the NetCDF file)
+
+        if self.has_units:
+            if self.units_are_kelvin:
+                if self.temp_convert_checkbox.isChecked():
+                    try:
+                        sliced_data = sliced_data - 273.15
+                    except Exception:
+                        self.temp_convert_checkbox.setChecked(False)
+                        dlg = QMessageBox(self)
+                        dlg.setWindowTitle("NetSeeDF message")
+                        dlg.setText("There was an error while converting to degrees Celsius!")
+                        dlg.exec()
+                        return
+
+        self.backend.set_data(sliced_data)
 
         # generate images
         image, colorbar = self.getb64image(sliced_data)
@@ -226,25 +288,41 @@ class PlotWindow3d(QWidget):
         pixmap = QPixmap.fromImage(qimage)
         self.cbar.setPixmap(pixmap)
 
+        self.close_map_popups()
+
     def getb64image(self, image_data):
         image = io.BytesIO()
         colorbar = io.BytesIO()
 
-        plt.figure()
+        ax = plt.axes(projection=ccrs.epsg(3857))
+
+        source_crs = ccrs.PlateCarree()
 
         if self.has_units:
-            if self.variable_units in ["mm", "day"]: # set the color scale minimum value to 0
-                mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest", vmin=0)
+            if self.variable_units in ["mm", "day"]:  # set the color scale minimum value to 0
+                mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs, vmin=0)
             else:
-                mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest")
+                mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs)
         else:
-            mpb = plt.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", shading="nearest")
+            mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs)
 
-        plt.axis("off")
-        plt.savefig(image, format="png", bbox_inches="tight")
+        xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
+        ymin = max(ymin, -85)
+        ymax = min(ymax, 85)
+        ax.set_extent([xmin, xmax, ymin, ymax], crs=source_crs)
+        ax.axis("off")
+        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=400)
 
         fig, ax = plt.subplots()
-        fig.colorbar(mpb, ax=ax)
+        cbar = fig.colorbar(mpb, ax=ax)
+        if self.has_units:
+            if self.units_are_kelvin:
+                if self.temp_convert_checkbox.isChecked():
+                    cbar.set_label("°C")
+                else:
+                    cbar.set_label(self.variable_units)
+            else:
+                cbar.set_label(self.variable_units)
         ax.remove()
         fig.savefig(colorbar, format="png", bbox_inches="tight")
 
@@ -252,3 +330,6 @@ class PlotWindow3d(QWidget):
         image.seek(0)
         colorbar.seek(0)
         return base64.b64encode(image.read()).decode("utf-8"), colorbar.read()
+
+    def on_convert_temp(self):
+        self.update_map()

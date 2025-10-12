@@ -1,4 +1,11 @@
 import sys
+import traceback
+
+def excepthook(type, value, tback):
+    traceback.print_exception(type, value, tback)
+    sys.__excepthook__(type, value, tback)
+
+sys.excepthook = excepthook
 import os
 from pathlib import Path
 from netCDF4 import Dataset
@@ -157,7 +164,7 @@ class MainWindow(QMainWindow):
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
 
-        # Read the data and determine its shape
+        # Read the data shape
         ncfile = Dataset(file_path, "r")
         num_dimensions = len(ncfile.variables[variable_name].shape)
         ncfile.close()
@@ -213,7 +220,14 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    try: # Set taskbar icon on Windows
+    import argparse
+    import cProfile
+
+    parser = argparse.ArgumentParser(description="NetSeeDF Application")
+    parser.add_argument('--profile', action='store_true', help='Enable profiling')
+    args = parser.parse_args()
+
+    try:  # Set taskbar icon on Windows
         from ctypes import windll  # Only exists on Windows.
         myappid = 'org.rokuk.netseedf'
         windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -224,4 +238,14 @@ if __name__ == "__main__":
     app.setWindowIcon(QIcon('icon.png'))
     window = MainWindow()
     window.show()
-    sys.exit(app.exec())
+
+    if args.profile:
+        profile_filename = 'profile_stats.prof'
+        print(f"Profiling enabled. Results will be saved to {profile_filename}")
+        with cProfile.Profile() as pr:
+            exit_code = app.exec()
+        pr.dump_stats(profile_filename)
+        print(f"Profile data saved to {profile_filename}. You can analyze it with 'python -m pstats {profile_filename}' or a visualization tool like SnakeViz.")
+        sys.exit(exit_code)
+    else:
+        sys.exit(app.exec())

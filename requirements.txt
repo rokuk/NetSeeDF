@@ -11,3 +11,4 @@ openpyxl
 PyInstaller
 offline_folium
 pandas
+cartopy
