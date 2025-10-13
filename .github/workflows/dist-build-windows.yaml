@@ -1,0 +1,47 @@
+name: Build Windows binary
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Install offline_folium
+        run: python -m offline_folium
+
+      - name: Create executable
+        run: pyinstaller netseedf.spec
+
+      - name: Upload artifact
+        id: artifact_upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-build-windows
+          path: dist
+
+      - name: If executable upload success
+        if: steps.artifact_upload.conclusion == 'success'
+        run: |
+          echo "Executable uploaded successfully" >> $GITHUB_STEP_SUMMARY
+          echo "uploaded='true'" >> $GITHUB_OUTPUT
+
+      - name: If executable upload fails
+        if: failure() && steps.artifact_upload.conclusion == 'failure'
+        run: |
+          echo "::warning title=Failed-Upload::\
+            Executable couldn't upload. \
+            Check available storage at: 'settings > billing > Storage for Actions and Packages'."
