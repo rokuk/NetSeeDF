@@ -32,7 +32,7 @@ jobs:
         run: python -m offline_folium
 
       - name: Create executable
-        run: pyinstaller netseedf.spec
+        run: pyinstaller build-windows.spec
 
       - name: Upload artifact
         id: artifact_upload
