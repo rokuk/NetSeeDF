@@ -1,8 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import offline_folium
+
+# Dynamically find the offline_folium package directory
+offline_folium_dir = os.path.dirname(offline_folium.__file__)
 
 datas = [
     ('icon.png', '.'),
-    ('C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium', 'offline_folium')
+    (offline_folium_dir, 'offline_folium')
 ]
 
 a = Analysis(
