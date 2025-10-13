@@ -8,7 +8,7 @@ folium
 netCDF4
 PyQt6-WebEngine
 openpyxl
-PyInstaller
-offline_folium
 pandas
 cartopy
+offline_folium
+PyInstaller

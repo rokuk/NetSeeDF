@@ -6,8 +6,7 @@ import offline_folium
 offline_folium_dir = os.path.dirname(offline_folium.__file__)
 
 datas = [
-    ('icon.png', '.'),
-    (offline_folium_dir, 'offline_folium')
+    ('icon.png', '.')
 ]
 
 a = Analysis(
