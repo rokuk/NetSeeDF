@@ -4,10 +4,11 @@ import offline_folium
 
 # Dynamically find the offline_folium package directory
 offline_folium_dir = os.path.dirname(offline_folium.__file__)
+print(offline_folium_dir)
 
 datas = [
     ('icon.png', '.'),
-    (offline_folium_dir, 'offline_folium')
+    ('C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium', 'offline_folium')
 ]
 
 a = Analysis(
