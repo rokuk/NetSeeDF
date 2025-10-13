@@ -2,7 +2,7 @@
 
 datas = [
     ('icon.png', '.'),
-    ('C:\hostedtoolcache\windows\Python\3.13.7\x64\Lib\site-packages\offline_folium', 'offline_folium')
+    ('C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium', 'offline_folium')
 ]
 
 a = Analysis(
