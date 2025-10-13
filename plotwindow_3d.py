@@ -1,6 +1,7 @@
 import base64
 import io
 
+from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
 import numpy as np
 import numpy.ma as ma
@@ -10,7 +11,6 @@ from PyQt6.QtWebChannel import QWebChannel
 from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
-from folium import Element
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
 from cartopy import crs as ccrs
@@ -211,7 +211,7 @@ class PlotWindow3d(QWidget):
         with open("qwebchannel.js") as f:
             webchanneljs = f.read()
 
-        scriptelement = Element('<script>' + webchanneljs + '</script>')
+        scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
         self.map.add_child(utils.WebChannelJS())
 
