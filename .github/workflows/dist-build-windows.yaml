@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
@@ -32,12 +32,18 @@ jobs:
         run: python -m offline_folium
 
       - name: Build with Nuitka
-        uses: Nuitka/Nuitka-Action@main
+        uses: Nuitka/Nuitka-Action@v1.3
         with:
-          nuitka-version: main
+          nuitka-version: v1.3
           script-name: netseedf.py
           mode: app
           enable-plugins: pyqt6
+          copyright: 'GNU General Public License v3.0'
+          #windows-console-mode: disable
+          windows-icon-from-ico: 'icon.png'
+          company-name: 'Rok Kuk'
+          product-name: 'NetSeeDF'
+          file-version: '0.1'
 
       - name: Upload artifact
         id: artifact_upload

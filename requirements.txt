@@ -11,4 +11,4 @@ PyQt6-WebEngine
 pandas
 offline_folium
 imageio
-PyInstaller
+zstandard

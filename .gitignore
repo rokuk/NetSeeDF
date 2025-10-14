@@ -3,3 +3,6 @@ build
 dist
 .venv
 profile_stats.prof
+netseedf.dist
+netseedf.cmd
+netseedf.exe
