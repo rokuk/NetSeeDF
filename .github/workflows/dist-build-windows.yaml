@@ -26,13 +26,13 @@ jobs:
             ${{ runner.os }}-pip-3.13.7-
 
       - name: Install dependencies
-        run: pip install -r requirements.txt pyinstaller
+        run: pip install -r requirements.txt nuitka
 
-      - name: Install offline_folium
+      - name: Install offline_folium map files
         run: python -m offline_folium
 
       - name: Create executable
-        run: pyinstaller build-windows.spec
+        run: python -m nuitka --mode=onefile --enable-plugin=pyqt6 --windows-console-mode=disable --include-module=netCDF4.utils --include-module=cftime --include-module=certifi --include-module=cftime._strptime --windows-icon-from-ico=icon.png --product-name=NetSeeDF --product-version=0.1 netseedf.py
 
       - name: Upload artifact
         id: artifact_upload

@@ -1,3 +1,4 @@
+jinja2
 pyqt6-sip
 scipy
 matplotlib
@@ -7,8 +8,7 @@ cartopy
 folium
 netCDF4
 PyQt6-WebEngine
-openpyxl
 pandas
-cartopy
 offline_folium
+imageio
 PyInstaller
