@@ -32,9 +32,9 @@ jobs:
         run: python -m offline_folium
 
       - name: Build with Nuitka
-        uses: Nuitka/Nuitka-Action@v1.3
+        uses: Nuitka/Nuitka-Action@main
         with:
-          nuitka-version: v1.3
+          nuitka-version: main
           script-name: netseedf.py
           mode: app
           enable-plugins: pyqt6
