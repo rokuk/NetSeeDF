@@ -229,6 +229,23 @@ class Backend(QObject):
         self.window_instance.close_map_popups()
 
 
+class Backend2d(QObject):
+    def __init__(self, xdata, ydata, data, show_map_popup):
+        super().__init__()
+        self.xdata = xdata
+        self.ydata = ydata
+        self.data = data
+        self.show_map_popup = show_map_popup
+
+    @pyqtSlot(float, float)
+    def on_map_click(self, lat, lon):
+        # check if coordinates are inside the bounds of the data, if outside do nothing
+        if (self.xdata.min() < lon < self.xdata.max()) and (self.ydata.min() < lat < self.ydata.max()):
+            gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
+            gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
+            self.show_map_popup(gridlat, gridlon, gridval)  # show popup with lat, lon and value of the closest grid point
+
+
 class WebChannelJS(MacroElement):
     _template = Template("""
             {% macro script(this, kwargs) %}

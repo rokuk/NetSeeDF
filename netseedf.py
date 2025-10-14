@@ -1,6 +1,9 @@
 import sys
 import traceback
 
+from plotwindow_2d import PlotWindow2d
+
+
 def excepthook(type, value, tback):
     traceback.print_exception(type, value, tback)
     sys.__excepthook__(type, value, tback)
@@ -179,7 +182,21 @@ class MainWindow(QMainWindow):
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
 
-        plotw = PlotWindow3d(file_name, variable_name, file_path)
+        ncfile = Dataset(file_path, "r")
+        variable_dimensions = len(ncfile.variables[variable_name].shape)
+        ncfile.close()
+
+        if variable_dimensions == 3:
+            plotw = PlotWindow3d(file_name, variable_name, file_path)
+        elif variable_dimensions == 2:
+            plotw = PlotWindow2d(file_name, variable_name, file_path)
+        else:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("NetSeeDF message")
+            dlg.setText("This shape of data is currently not supported!")
+            dlg.exec()
+            return
+
         plotw.show()
         self.open_windows.append(plotw)
 
@@ -211,7 +228,7 @@ class MainWindow(QMainWindow):
             parent_name = parent.data(0, Qt.ItemDataRole.DisplayRole) # get the name of the file containing the selected variable
             ncfile = Dataset(self.file_paths_dict[parent_name], "r")
             self.text_area.setPlainText(str(ncfile.variables[selection_name]))
-            if len(ncfile.variables[selection_name].shape) == 3: # only enable plot button for 3-dimensional variables
+            if len(ncfile.variables[selection_name].shape) == 3 or len(ncfile.variables[selection_name].shape) == 2: # only enable plot button for 3-dimensional variables
                 self.plot_button.setEnabled(True)
             else:
                 self.plot_button.setEnabled(False)
