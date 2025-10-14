@@ -12,3 +12,4 @@ pandas
 offline_folium
 imageio
 zstandard
+setuptools
