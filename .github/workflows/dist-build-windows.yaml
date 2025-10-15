@@ -38,7 +38,7 @@ jobs:
           script-name: netseedf.py
           mode: app
           enable-plugins: pyqt6
-          include-package: netCDF4, cftime
+          include-package: netCDF4,cftime
           include-module: netCDF4.utils
           include-data-dir: "C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium=offline_folium"
           copyright: 'GNU General Public License v3.0'
