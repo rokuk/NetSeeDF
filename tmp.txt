@@ -1,1 +1,0 @@
-python -m nuitka --mode=standalone --include-module=netCDF4.utils --include-module=cftime --include-module=cftime._strptime --enable-plugin=pyqt6 --windows-console-mode=disable --windows-icon-from-ico=icon.png --product-name=NetSeeDF --product-version=0.1 netseedf.py
