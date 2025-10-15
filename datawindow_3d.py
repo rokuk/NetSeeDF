@@ -108,6 +108,9 @@ class DataWindow3d(QWidget):
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
         self.slice_dimension_name = variable_data.dimensions[slice_dim_index]
+        self.x_dim_index = x_dim_index
+        self.y_dim_index = y_dim_index
+        self.slice_dim_index = slice_dim_index
 
         # get x and y axis data units if available
         self.xdataunit = ""
@@ -273,7 +276,7 @@ class DataWindow3d(QWidget):
         self.update_table()
 
     def show_context_menu(self, point):
-        utils.show_context_menu(self, point)
+        utils.show_context_menu_3d(self, point, self, self.tdata, self.tunits, self.calendar, self.variable_name, self.file_path, self.x_dim_index, self.y_dim_index, self.slice_dim_index)
 
     def export_3d(self):
         suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())

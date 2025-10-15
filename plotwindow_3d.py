@@ -1,5 +1,6 @@
 import base64
 import io
+import os
 
 from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
@@ -212,8 +213,12 @@ class PlotWindow3d(QWidget):
             with open("qwebchannel.js") as f:
                 webchanneljs = f.read()
         except Exception:
-            with open("../MacOS/qwebchannel.js") as f:
-                webchanneljs = f.read()
+            try:
+                os.chdir("../MacOS")
+                with open("qwebchannel.js") as f:
+                    webchanneljs = f.read()
+            except Exception:
+                pass
 
         scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)

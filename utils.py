@@ -18,6 +18,49 @@ def show_context_menu(self, point):
             value = index.data()
             QApplication.clipboard().setText(str(value))
 
+def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, variable_name, file_path, x_dim_index, y_dim_index, slice_dim_index):
+    index = self.data_table.indexAt(point)
+    if index.isValid():
+        menu = QMenu()
+        copy_action = menu.addAction("Copy")
+        export_action = menu.addAction("Export timeseries")
+        action = menu.exec(QCursor.pos())
+        if action == copy_action:
+            value = index.data()
+            QApplication.clipboard().setText(str(value))
+        elif action == export_action:
+
+            index.column()
+
+            # slice the data with the selected grid indexes (from on_map_click)
+            idx = [slice(None)] * 3  # sorry, but it works
+            idx[x_dim_index] = index.column()
+            idx[y_dim_index] = index.row()
+            idx[slice_dim_index] = ...
+
+            ncfile = Dataset(file_path, "r")
+            variable_data = ncfile.variables[variable_name]
+            timeseries = variable_data[tuple(idx)]  # slice the data for the grid point to get the timeseries
+            ncfile.close()
+
+            if window_instance.has_units:
+                if window_instance.variable_units == "K":
+                    if window_instance.temp_convert_checkbox.isChecked():
+                        try:
+                            timeseries = timeseries - 273.15
+                        except Exception:
+                            pass
+
+            if tunits is not None and calendar is not None:
+                datetimes = num2date(self.tdata, self.tunits, self.calendar)
+            else:
+                datetimes = tdata
+
+            df = DataFrame({"time": datetimes, "variable": timeseries})
+
+            show_dialog_and_save(window_instance, df, "timeseries", False)
+
+
 
 def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=True):
     dialog = QFileDialog(self, "Save File")
@@ -249,8 +292,6 @@ class WebChannelJS(MacroElement):
                     new QWebChannel(qt.webChannelTransport, function(channel) {
                         window.backend = channel.objects.backend;
                     });
-                } else {
-                    alert("qt or QWebChannel is not defined");
                 }
             }
             document.addEventListener('DOMContentLoaded', setupWebChannel, false);

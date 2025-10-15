@@ -161,6 +161,12 @@ jobs:
       - name: Install offline_folium map files
         run: python -m offline_folium
 
+      # Remove problematic brew libs if Intel Mac
+      - name: Remove problematic brew libs
+        run: |
+          brew remove --force --ignore-dependencies openssl@3
+          brew cleanup openssl@3
+
       - name: Build with Nuitka
         uses: Nuitka/Nuitka-Action@main
         with:
