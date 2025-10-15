@@ -225,8 +225,6 @@ class DataWindow3d(QWidget):
         for col in range(len(self.xdata)):
             self.data_table.horizontalHeader().resizeSection(col, max_xwidth + 20)
 
-        self.data_table.update()
-
         layout.addWidget(data_table)
 
         # we are done reading the data from the NetCDF file
@@ -267,7 +265,6 @@ class DataWindow3d(QWidget):
                         return
 
         self.model.set_data(slice_2d.astype(str))
-        self.data_table.update()
 
         # calculate and display new slice datetime (if able to calculate datetime)
         if self.can_convert_datetime:
@@ -277,7 +274,6 @@ class DataWindow3d(QWidget):
 
     def update_headers(self):
         self.model.show_label_headers(self.labels_checkbox.isChecked())
-        self.data_table.update()
 
     def on_convert_temp(self):
         self.update_table()

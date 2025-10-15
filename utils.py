@@ -83,25 +83,25 @@ def get_max_width(data_table, labels):
 
 
 class TableModel(QAbstractTableModel):
-    def __init__(self, data, xlabels, ylabels):
+    def __init__(self, current_data, xlabels, ylabels):
         super().__init__()
-        self.data = data
+        self.current_data = current_data
         self.xlabels = xlabels
         self.ylabels = ylabels
         self.label_headers = False
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole:
-            return str(self.data[index.row(), index.column()])
+            return str(self.current_data[index.row(), index.column()])
         else:
             return None
 
     def rowCount(self, parent=None):
-        return self.data.shape[0]
+        return self.current_data.shape[0]
 
     def columnCount(self, parent=None):
-        if len(self.data.shape) == 2:
-            return self.data.shape[1]
+        if len(self.current_data.shape) == 2:
+            return self.current_data.shape[1]
         else:
             return 1
 
@@ -119,9 +119,9 @@ class TableModel(QAbstractTableModel):
     def show_label_headers(self, label_headers):
         self.label_headers = label_headers
 
-    def set_data(self, data):
+    def set_data(self, current_data):
         self.beginResetModel()
-        self.data = data
+        self.current_data = current_data
         self.endResetModel()
 
     def get_xwidth(self, data_table):
@@ -132,28 +132,28 @@ class TableModel(QAbstractTableModel):
 
 
 class SimpleTableModel(QAbstractTableModel):
-    def __init__(self, data):
+    def __init__(self, current_data):
         super().__init__()
-        self.data = data
+        self.current_data = current_data
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if role == Qt.ItemDataRole.DisplayRole:
-            return str(self.data[index.row(), index.column()])
+            return str(self.current_data[index.row(), index.column()])
         else:
             return None
 
     def rowCount(self, parent=None):
-        return self.data.shape[0]
+        return self.current_data.shape[0]
 
     def columnCount(self, parent=None):
-        if len(self.data.shape) == 2:
-            return self.data.shape[1]
+        if len(self.current_data.shape) == 2:
+            return self.current_data.shape[1]
         else:
             return 1
 
-    def set_data(self, data):
+    def set_data(self, current_data):
         self.beginResetModel()
-        self.data = data
+        self.current_data = current_data
         self.endResetModel()
 
 

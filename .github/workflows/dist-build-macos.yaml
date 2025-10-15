@@ -38,10 +38,9 @@ jobs:
           script-name: netseedf.py
           mode: app
           enable-plugins: pyside6
-          include-package: netCDF4
+          include-package: netCDF4, cftime
           include-module: netCDF4.utils
           copyright: 'GNU General Public License v3.0'
-          #windows-console-mode: disable
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
           macos-app-name: 'NetSeeDF'
@@ -52,10 +51,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           include-hidden-files: true
-          name: dist-build-windows
+          name: dist-build-macos
           path: build
-
-
 
       - name: If executable upload success
         if: steps.artifact_upload.conclusion == 'success'
