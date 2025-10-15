@@ -11,3 +11,4 @@ pandas
 offline_folium
 imageio
 setuptools
+cftime
