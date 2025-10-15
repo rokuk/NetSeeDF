@@ -1,7 +1,7 @@
 import numpy as np
 from PySide6.QtCore import QAbstractTableModel, Qt, QObject, Slot
 from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
+from PySide6.QtWidgets import QMenu, QApplication, QFileDialog
 from folium import MacroElement
 from jinja2 import Template
 from netCDF4 import num2date, Dataset

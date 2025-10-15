@@ -174,7 +174,7 @@ jobs:
           script-name: netseedf.py
           mode: app
           enable-plugins: pyside6
-          include-package: netCDF4,cftime
+          include-package: netCDF4,cftime,openpyxl
           include-module: netCDF4.utils
           include-data-dir: "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/offline_folium=offline_folium"
           include-data-files: "qwebchannel.js=qwebchannel.js"
@@ -191,7 +191,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           include-hidden-files: true
-          name: dist-build-macos
+          name: dist-build-macos-intel
           path: build
 
       - name: If executable upload success
