@@ -36,9 +36,8 @@ jobs:
         with:
           nuitka-version: main
           script-name: netseedf.py
-          mode: app
+          mode: standalone
           enable-plugins: pyqt6
-          include-package: netcdf4.utils
           copyright: 'GNU General Public License v3.0'
           #windows-console-mode: disable
           windows-icon-from-ico: 'icon.png'
@@ -50,8 +49,11 @@ jobs:
         id: artifact_upload
         uses: actions/upload-artifact@v4
         with:
+          include-hidden-files: true
           name: dist-build-windows
           path: build
+
+
 
       - name: If executable upload success
         if: steps.artifact_upload.conclusion == 'success'
