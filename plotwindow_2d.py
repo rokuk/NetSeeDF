@@ -5,12 +5,11 @@ from offline_folium import offline # must be before importing folium, DO NOT REM
 import folium  # must be after importing offline folium
 import numpy as np
 import numpy.ma as ma
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPixmap, QImage
-from PyQt6.QtWebChannel import QWebChannel
-from PyQt6.QtWebEngineCore import QWebEngineUrlScheme
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
+from PySide6.QtGui import QPixmap, QImage
+from PySide6.QtWebChannel import QWebChannel
+from PySide6.QtWebEngineCore import QWebEngineUrlScheme
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
 from cartopy import crs as ccrs

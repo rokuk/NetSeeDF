@@ -12,10 +12,10 @@ sys.excepthook = excepthook
 import os
 from pathlib import Path
 from netCDF4 import Dataset
-from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, QVBoxLayout, \
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, QVBoxLayout, \
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 
 from datawindow_1d import DataWindow1d
 from datawindow_2d import DataWindow2d

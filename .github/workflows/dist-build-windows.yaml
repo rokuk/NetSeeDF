@@ -38,6 +38,8 @@ jobs:
           script-name: netseedf.py
           mode: standalone
           enable-plugins: pyqt6
+          include-package: netCDF4
+          include-module: netCDF4.utils
           copyright: 'GNU General Public License v3.0'
           #windows-console-mode: disable
           windows-icon-from-ico: 'icon.png'

@@ -36,16 +36,16 @@ jobs:
         with:
           nuitka-version: main
           script-name: netseedf.py
-          mode: standalone
-          enable-plugins: pyqt6
+          mode: app
+          enable-plugins: pyside6
           include-package: netCDF4
           include-module: netCDF4.utils
           copyright: 'GNU General Public License v3.0'
           #windows-console-mode: disable
-          windows-icon-from-ico: 'icon.png'
+          macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
-          product-name: 'NetSeeDF'
-          file-version: '0.1'
+          macos-app-name: 'NetSeeDF'
+          macos-app-version: '0.1'
 
       - name: Upload artifact
         id: artifact_upload

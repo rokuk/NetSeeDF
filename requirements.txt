@@ -3,11 +3,10 @@ pyqt6-sip
 scipy
 matplotlib
 numpy
-PyQt6
+PySide6
 cartopy
 folium
 netCDF4
-PyQt6-WebEngine
 pandas
 offline_folium
 imageio

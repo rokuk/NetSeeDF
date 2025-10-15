@@ -1,7 +1,7 @@
 import numpy as np
-from PyQt6.QtCore import QAbstractTableModel, Qt, QObject, pyqtSlot
-from PyQt6.QtGui import QCursor
-from PyQt6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
+from PySide6.QtCore import QAbstractTableModel, Qt, QObject, Slot
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
 from folium import MacroElement
 from jinja2 import Template
 from netCDF4 import num2date, Dataset
@@ -186,7 +186,7 @@ class Backend(QObject):
     def set_data(self, data):
         self.data = data
 
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def on_map_click(self, lat, lon):
         # check if coordinates are inside the bounds of the data, if outside do nothing
         if (self.xdata.min() < lon < self.xdata.max()) and (self.ydata.min() < lat < self.ydata.max()):
@@ -196,7 +196,7 @@ class Backend(QObject):
             self.show_map_popup(gridlat, gridlon,
                                 gridval)  # show popup with lat, lon and value of the closest grid point
 
-    @pyqtSlot()
+    @Slot()
     def on_export_requested(self):
         # slice the data with the selected grid indexes (from on_map_click)
         idx = [slice(None)] * 3  # sorry, but it works
@@ -237,7 +237,7 @@ class Backend2d(QObject):
         self.data = data
         self.show_map_popup = show_map_popup
 
-    @pyqtSlot(float, float)
+    @Slot(float, float)
     def on_map_click(self, lat, lon):
         # check if coordinates are inside the bounds of the data, if outside do nothing
         if (self.xdata.min() < lon < self.xdata.max()) and (self.ydata.min() < lat < self.ydata.max()):

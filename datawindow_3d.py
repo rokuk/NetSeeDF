@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import numpy as np
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
     QHBoxLayout, QSpinBox, QPushButton, QTableView, QMessageBox, QComboBox
 from netCDF4 import Dataset, num2date
 
