@@ -109,7 +109,7 @@ jobs:
           include-data-files: "qwebchannel.js=qwebchannel.js"
           nofollow-import-to: scipy.integrate
           copyright: 'GNU General Public License v3.0'
-          macos-app-protected-resource: "NSDownloadsFolderUsageDescription:ReadNetCDFfile"
+          macos-app-protected-resource: "NSDownloadsFolderUsageDescription:ReadNetCDFfile(read-write)"
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
           macos-app-name: 'NetSeeDF'
@@ -174,7 +174,7 @@ jobs:
           include-data-files: "qwebchannel.js=qwebchannel.js"
           nofollow-import-to: scipy.integrate
           copyright: 'GNU General Public License v3.0'
-          macos-app-protected-resource: "NSDownloadsFolderUsageDescription:ReadNetCDFfile"
+          macos-app-protected-resource: "NSDownloadsFolderUsageDescription:ReadNetCDFfile(read-write)"
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
           macos-app-name: 'NetSeeDF'
