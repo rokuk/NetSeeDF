@@ -269,7 +269,6 @@ class DataWindow3d(QWidget):
     def update_headers(self):
         self.model.show_label_headers(self.labels_checkbox.isChecked())
 
-
     def on_convert_temp(self):
         self.update_table()
 

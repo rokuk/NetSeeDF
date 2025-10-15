@@ -51,22 +51,15 @@ def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=T
             # Update last directory
             if use_last_dir: self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
 
-            try:
-                if not isinstance(selected_data, DataFrame):
-                    selected_data = DataFrame(selected_data)
+            if not isinstance(selected_data, DataFrame):
+                selected_data = DataFrame(selected_data)
 
-                if ext == ".txt":
-                    selected_data.to_csv(file_path, index=False, header=False, sep=" ")
-                elif ext == ".csv":
-                    selected_data.to_csv(file_path, index=False, header=False)
-                elif ext == ".xlsx":
-                    selected_data.to_excel(file_path, index=False, header=False)
-            except Exception:
-                dlg = QMessageBox(self)
-                dlg.setWindowTitle("NetSeeDF message")
-                dlg.setText("There was an error saving the file!")
-                dlg.exec()
-                return
+            if ext == ".txt":
+                selected_data.to_csv(file_path, index=False, header=False, sep=" ")
+            elif ext == ".csv":
+                selected_data.to_csv(file_path, index=False, header=False)
+            elif ext == ".xlsx":
+                selected_data.to_excel(file_path, index=False, header=False)
 
 
 def get_max_width(data_table, labels):
