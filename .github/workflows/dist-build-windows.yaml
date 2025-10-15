@@ -51,7 +51,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-build-windows
-          path: dist
+          path: build
 
       - name: If executable upload success
         if: steps.artifact_upload.conclusion == 'success'
