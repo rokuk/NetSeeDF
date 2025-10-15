@@ -40,6 +40,7 @@ jobs:
           enable-plugins: pyside6
           include-package: netCDF4, cftime
           include-module: netCDF4.utils
+          include-data-dir: "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/offline_folium=offline_folium"
           copyright: 'GNU General Public License v3.0'
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
