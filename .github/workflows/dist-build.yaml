@@ -42,6 +42,7 @@ jobs:
           include-module: netCDF4.utils
           include-data-dir: "C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium=offline_folium"
           include-data-files: "qwebchannel.js=qwebchannel.js"
+          nofollow-import-to: scipy.integrate
           copyright: 'GNU General Public License v3.0'
           #windows-console-mode: disable
           windows-icon-from-ico: 'icon.png'
@@ -106,6 +107,7 @@ jobs:
           include-module: netCDF4.utils
           include-data-dir: "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/offline_folium=offline_folium"
           include-data-files: "qwebchannel.js=qwebchannel.js"
+          nofollow-import-to: scipy.integrate
           copyright: 'GNU General Public License v3.0'
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'

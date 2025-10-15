@@ -170,14 +170,8 @@ class DataWindow3d(QWidget):
             pass
 
         try:
-            slice_dates = num2date(self.tdata, self.tunits, self.calendar)
-
-            slice_date_combobox = QComboBox()
-            slice_date_combobox.addItems(slice_dates)
-
-            self.slice_date_combobox = slice_date_combobox
-
-            # self.slice_date_label = QLabel(" =  " + str(slice_date))
+            slice_date = num2date(self.tdata[0], self.tunits, self.calendar)
+            self.slice_date_label = QLabel(" =  " + str(slice_date))
             slice_selector_layout.addWidget(self.slice_date_label)
             self.can_convert_datetime = True
         except Exception:  # in case the calendar or units are not available
@@ -274,6 +268,7 @@ class DataWindow3d(QWidget):
 
     def update_headers(self):
         self.model.show_label_headers(self.labels_checkbox.isChecked())
+
 
     def on_convert_temp(self):
         self.update_table()

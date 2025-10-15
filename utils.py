@@ -118,6 +118,8 @@ class TableModel(QAbstractTableModel):
 
     def show_label_headers(self, label_headers):
         self.label_headers = label_headers
+        self.headerDataChanged.emit(Qt.Orientation.Horizontal, 0, self.columnCount() - 1)
+        self.headerDataChanged.emit(Qt.Orientation.Vertical, 0, self.rowCount() - 1)
 
     def set_data(self, current_data):
         self.beginResetModel()
