@@ -209,8 +209,10 @@ class PlotWindow3d(QWidget):
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
-        with open("qwebchannel.js") as f:
-            webchanneljs = f.read()
+        #with open("qwebchannel.js") as f:
+        #    webchanneljs = f.read()
+        webchanneljs = ""
+        print(os.getcwd())
 
         scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
