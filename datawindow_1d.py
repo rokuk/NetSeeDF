@@ -53,6 +53,13 @@ class DataWindow1d(QWidget):
         except Exception:
             pass
 
+        # display description of the variable if given in the NetCDF file
+        try:
+            desc_label = QLabel("Description: \t" + variable_data.description, wordWrap=True)
+            layout.addWidget(desc_label)
+        except Exception:
+            pass
+
         # display the data in a table
         data_table = QTableWidget(self)
         data_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)

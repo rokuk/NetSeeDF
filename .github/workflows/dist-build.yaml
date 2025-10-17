@@ -1,9 +1,15 @@
 name: Build Windows binary
+permissions:
+  contents: read
 
 on:
   push:
     branches:
       - release
+
+env:
+  APP_RELEASE_VERSION: '0.1'
+  PYTHON_VERSION: '3.13.7'
 
 jobs:
   build-windows:
@@ -15,15 +21,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13.7'
+          python-version: $PYTHON_VERSION
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-3.13.7-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-$PYTHON_VERSION-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-3.13.7-
+            ${{ runner.os }}-pip-$PYTHON_VERSION-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -41,14 +47,14 @@ jobs:
           include-package: netCDF4,cftime
           include-module: netCDF4.utils
           include-data-dir: "C:\\hostedtoolcache\\windows\\Python\\3.13.7\\x64\\Lib\\site-packages\\offline_folium=offline_folium"
-          include-data-files: "qwebchannel.js=qwebchannel.js"
+          include-data-files: "qwebchannel.js=qwebchannel.js,offline_folium=offline_folium"
           nofollow-import-to: scipy.integrate
           copyright: 'GNU General Public License v3.0'
           #windows-console-mode: disable
           windows-icon-from-ico: 'icon.png'
           company-name: 'Rok Kuk'
           product-name: 'NetSeeDF'
-          file-version: '0.1'
+          file-version: $APP_RELEASE_VERSION
 
       - name: Upload artifact
         id: artifact_upload
@@ -57,12 +63,6 @@ jobs:
           include-hidden-files: true
           name: dist-build-windows
           path: build
-
-      - name: If executable upload success
-        if: steps.artifact_upload.conclusion == 'success'
-        run: |
-          echo "Executable uploaded successfully" >> $GITHUB_STEP_SUMMARY
-          echo "uploaded='true'" >> $GITHUB_OUTPUT
 
       - name: If executable upload fails
         if: failure() && steps.artifact_upload.conclusion == 'failure'
@@ -80,15 +80,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13.7'
+          python-version: $PYTHON_VERSION
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-3.13.7-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-$PYTHON_VERSION-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-3.13.7-
+            ${{ runner.os }}-pip-$PYTHON_VERSION-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -113,7 +113,7 @@ jobs:
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
           macos-app-name: 'NetSeeDF'
-          macos-app-version: '0.1'
+          macos-app-version: $APP_RELEASE_VERSION
 
       - name: Upload artifact
         id: artifact_upload
@@ -122,12 +122,6 @@ jobs:
           include-hidden-files: true
           name: dist-build-macos
           path: build
-
-      - name: If executable upload success
-        if: steps.artifact_upload.conclusion == 'success'
-        run: |
-          echo "Executable uploaded successfully" >> $GITHUB_STEP_SUMMARY
-          echo "uploaded='true'" >> $GITHUB_OUTPUT
 
       - name: If executable upload fails
         if: failure() && steps.artifact_upload.conclusion == 'failure'
@@ -145,15 +139,15 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.13.7'
+          python-version: $PYTHON_VERSION
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
           path: ~\AppData\Local\pip\Cache
-          key: ${{ runner.os }}-pip-3.13.7-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-$PYTHON_VERSION-${{ hashFiles('requirements.txt') }}
           restore-keys: |
-            ${{ runner.os }}-pip-3.13.7-
+            ${{ runner.os }}-pip-$PYTHON_VERSION-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -161,7 +155,6 @@ jobs:
       - name: Install offline_folium map files
         run: python -m offline_folium
 
-      # Remove problematic brew libs if Intel Mac
       - name: Remove problematic brew libs
         run: |
           brew remove --force --ignore-dependencies openssl@3
@@ -184,7 +177,7 @@ jobs:
           macos-app-icon: 'icon.png'
           company-name: 'Rok Kuk'
           macos-app-name: 'NetSeeDF'
-          macos-app-version: '0.1'
+          macos-app-version: $APP_RELEASE_VERSION
 
       - name: Upload artifact
         id: artifact_upload
@@ -193,12 +186,6 @@ jobs:
           include-hidden-files: true
           name: dist-build-macos-intel
           path: build
-
-      - name: If executable upload success
-        if: steps.artifact_upload.conclusion == 'success'
-        run: |
-          echo "Executable uploaded successfully" >> $GITHUB_STEP_SUMMARY
-          echo "uploaded='true'" >> $GITHUB_OUTPUT
 
       - name: If executable upload fails
         if: failure() && steps.artifact_upload.conclusion == 'failure'
