@@ -51,8 +51,8 @@ class MainWindow(QMainWindow):
         data_button.clicked.connect(self.show_data)
         data_button.setEnabled(False)
         self.data_button = data_button
-        plot_button = QPushButton("Make plot")
-        plot_button.clicked.connect(self.make_plot)
+        plot_button = QPushButton("Show map")
+        plot_button.clicked.connect(self.show_map)
         plot_button.setEnabled(False)
         self.plot_button = plot_button
 
@@ -142,7 +142,24 @@ class MainWindow(QMainWindow):
             self.tree.setCurrentItem(item)
 
 
-    def open_data_window(self, num_dimensions, file_name, variable_name, file_path):
+    def get_info_about_selected(self):
+        current_item = self.tree.currentItem()
+        variable_name = current_item.data(0, Qt.ItemDataRole.DisplayRole)
+        file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
+        file_path = self.file_paths_dict[file_name]
+
+        # Read the data shape
+        ncfile = Dataset(file_path, "r")
+        num_dimensions = len(ncfile.variables[variable_name].shape)
+        ncfile.close()
+
+        return num_dimensions, file_name, variable_name, file_path
+
+
+    # Displays a table of the data for the selected variable in a new window
+    def show_data(self):
+        num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
+
         if num_dimensions == 1:
             dataw = DataWindow1d(file_name, variable_name, file_path)
         elif num_dimensions == 2:
@@ -160,35 +177,13 @@ class MainWindow(QMainWindow):
         self.open_windows.append(dataw)
 
 
-    # Displays a table of the data for the selected variable in a new window
-    def show_data(self):
-        current_item = self.tree.currentItem()
-        variable_name = current_item.data(0, Qt.ItemDataRole.DisplayRole)
-        file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
-        file_path = self.file_paths_dict[file_name]
-
-        # Read the data shape
-        ncfile = Dataset(file_path, "r")
-        num_dimensions = len(ncfile.variables[variable_name].shape)
-        ncfile.close()
-
-        self.open_data_window(num_dimensions, file_name, variable_name, file_path)
-
-
     # Plot the data for the selected variable in a new window
-    def make_plot(self):
-        current_item = self.tree.currentItem()
-        variable_name = current_item.data(0, Qt.ItemDataRole.DisplayRole)
-        file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
-        file_path = self.file_paths_dict[file_name]
+    def show_map(self):
+        num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
 
-        ncfile = Dataset(file_path, "r")
-        variable_dimensions = len(ncfile.variables[variable_name].shape)
-        ncfile.close()
-
-        if variable_dimensions == 3:
+        if num_dimensions == 3:
             plotw = PlotWindow3d(file_name, variable_name, file_path)
-        elif variable_dimensions == 2:
+        elif num_dimensions == 2:
             plotw = PlotWindow2d(file_name, variable_name, file_path)
         else:
             dlg = QMessageBox(self)

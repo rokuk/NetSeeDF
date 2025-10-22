@@ -28,7 +28,6 @@ class DataWindow1d(QWidget):
         data = np.array(variable_data[:])  # cast data to a numpy array
 
         self.fill_value = variable_data.get_fill_value()
-        data = np.where(data == self.fill_value, np.nan, data)
         self.data = data
 
         layout = QVBoxLayout()

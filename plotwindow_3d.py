@@ -1,6 +1,5 @@
 import base64
 import io
-import os
 
 from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
@@ -17,6 +16,9 @@ from netCDF4 import Dataset, num2date
 from cartopy import crs as ccrs
 import matplotlib.style as mplstyle
 from matplotlib import use as mpluse
+
+from plotbackend import WebChannelJS, Backend3d
+
 mplstyle.use('fast')
 mpluse("agg")
 
@@ -203,20 +205,19 @@ class PlotWindow3d(QWidget):
 
         # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
         self.channel = QWebChannel()
-        self.backend = utils.Backend(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
-                                     slice_dim_index, self.show_map_popup, self)
+        self.backend = Backend3d(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
+                                       slice_dim_index, self.show_map_popup, self)
         self.backend.set_data(sliced_data)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
-        #with open("qwebchannel.js") as f:
-        #    webchanneljs = f.read()
-        webchanneljs = ""
-        print(os.getcwd())
+        with open("qwebchannel.js") as f:
+            webchanneljs = f.read()
+        #webchanneljs = ""
 
         scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
-        self.map.add_child(utils.WebChannelJS())
+        self.map.add_child(WebChannelJS())
 
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data)  # load the html
@@ -254,15 +255,8 @@ class PlotWindow3d(QWidget):
             except Exception:
                 pass
 
-        ncfile = Dataset(self.file_path, "r")
-        variable_data = ncfile.variables[self.variable_name]
-        if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
-            sliced_data = variable_data[slice_index, :, :]
-        elif self.slice_dim_index == 1:
-            sliced_data = variable_data[:, slice_index, :]
-        else:
-            sliced_data = variable_data[:, :, slice_index]
-        ncfile.close()
+        sliced_data = utils.slice_data(self.file_path, self.variable_name, self.slice_dim_index, slice_index)
+
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)  # mask missing values (given by the _FillValue in the NetCDF file)
 
         if self.has_units:

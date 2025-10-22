@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidget
 from netCDF4 import Dataset, num2date
 
 import utils
+from tableutils import SimpleTableModel
 
 
 # Window which shows a table of the data for the chosen variable and some info about the variable.
@@ -27,7 +28,6 @@ class DataWindow2d(QWidget):
         data = np.array(variable_data[:])  # cast data to a numpy array
 
         self.fill_value = variable_data.get_fill_value()
-        data = np.where(data == self.fill_value, np.nan, data)
         self.data = data
 
         layout = QVBoxLayout()
@@ -67,7 +67,7 @@ class DataWindow2d(QWidget):
             if variable_data.units == "degrees_east" or variable_data.units == "degrees_north":
                 str_data = str_data + "°"
 
-        self.model = utils.SimpleTableModel(str_data)
+        self.model = SimpleTableModel(str_data)
         self.data_table.setModel(self.model)
 
         export_widget = QWidget()
