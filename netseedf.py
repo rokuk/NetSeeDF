@@ -232,12 +232,12 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    import argparse
-    import cProfile
+    #import argparse
+    #import cProfile
 
-    parser = argparse.ArgumentParser(description="NetSeeDF Application")
-    parser.add_argument('--profile', action='store_true', help='Enable profiling')
-    args = parser.parse_args()
+    #parser = argparse.ArgumentParser(description="NetSeeDF Application")
+    #parser.add_argument('--profile', action='store_true', help='Enable profiling')
+    #args = parser.parse_args()
 
     try:  # Set taskbar icon on Windows
         from ctypes import windll  # Only exists on Windows.
@@ -251,13 +251,13 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
 
-    if args.profile:
-        profile_filename = 'profile_stats.prof'
-        print(f"Profiling enabled. Results will be saved to {profile_filename}")
-        with cProfile.Profile() as pr:
-            exit_code = app.exec()
-        pr.dump_stats(profile_filename)
-        print(f"Profile data saved to {profile_filename}. You can analyze it with 'python -m pstats {profile_filename}' or a visualization tool like SnakeViz.")
-        sys.exit(exit_code)
-    else:
-        sys.exit(app.exec())
+    # if args.profile:
+    #     profile_filename = 'profile_stats.prof'
+    #     print(f"Profiling enabled. Results will be saved to {profile_filename}")
+    #     with cProfile.Profile() as pr:
+    #         exit_code = app.exec()
+    #     pr.dump_stats(profile_filename)
+    #     print(f"Profile data saved to {profile_filename}. You can analyze it with 'python -m pstats {profile_filename}' or a visualization tool like SnakeViz.")
+    #     sys.exit(exit_code)
+    # else:
+    sys.exit(app.exec())

@@ -44,13 +44,18 @@ class DataWindow2d(QWidget):
         except Exception:
             pass
 
-        print(ncfile.variables)
-
         # display calendar type if given the NetCDF file
         try:
             if variable_data.calendar is not None:
                 calendar_label = QLabel("Calendar: \t" + variable_data.calendar)
                 layout.addWidget(calendar_label)
+        except Exception:
+            pass
+
+        # display description of the variable if given in the NetCDF file
+        try:
+            desc_label = QLabel("Description: \t" + variable_data.description, wordWrap=True)
+            layout.addWidget(desc_label)
         except Exception:
             pass
 

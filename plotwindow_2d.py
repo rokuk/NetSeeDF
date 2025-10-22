@@ -88,7 +88,12 @@ class PlotWindow2d(QWidget):
         except Exception:
             pass
 
-        ncfile.close()
+        # display description of the variable if given in the NetCDF file
+        try:
+            desc_label = QLabel("Description: \t" + variable_data.description, wordWrap=True)
+            layout.addWidget(desc_label)
+        except Exception:
+            pass
 
         scheme = QWebEngineUrlScheme(b'qrc')
         scheme.setFlags(QWebEngineUrlScheme.Flag.LocalScheme | QWebEngineUrlScheme.Flag.LocalAccessAllowed)
@@ -107,9 +112,9 @@ class PlotWindow2d(QWidget):
         maplayout.addWidget(self.view)
 
         # intial data load
-        ncfile = Dataset(self.file_path, "r")
-        variable_data = ncfile.variables[self.variable_name]
         masked_data = ma.masked_equal(variable_data, self.fill_value)
+
+        ncfile.close()
 
         image, colorbar = self.getb64image(masked_data)
 

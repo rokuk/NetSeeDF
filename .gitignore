@@ -4,5 +4,7 @@ dist
 .venv
 profile_stats.prof
 netseedf.dist
+netseedf.build
+netseedf.onefile-build
 netseedf.cmd
 netseedf.exe

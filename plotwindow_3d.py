@@ -110,6 +110,13 @@ class PlotWindow3d(QWidget):
         except Exception:
             pass
 
+        # display description of the variable if given in the NetCDF file
+        try:
+            desc_label = QLabel("Description: \t" + variable_data.description, wordWrap=True)
+            layout.addWidget(desc_label)
+        except Exception:
+            pass
+
         slice_selector_widget = QWidget()
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
@@ -156,8 +163,6 @@ class PlotWindow3d(QWidget):
                 self.units_are_kelvin = True
                 layout.addWidget(temp_convert_widget)
 
-        ncfile.close()
-
         scheme = QWebEngineUrlScheme(b'qrc')
         scheme.setFlags(QWebEngineUrlScheme.Flag.LocalScheme | QWebEngineUrlScheme.Flag.LocalAccessAllowed)
         QWebEngineUrlScheme.registerScheme(scheme)
@@ -175,15 +180,15 @@ class PlotWindow3d(QWidget):
         maplayout.addWidget(self.view)
 
         # intial data load
-        ncfile = Dataset(self.file_path, "r")
-        variable_data = ncfile.variables[self.variable_name]
         if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
             sliced_data = variable_data[0, :, :]
         elif self.slice_dim_index == 1:
             sliced_data = variable_data[:, 0, :]
         else:
             sliced_data = variable_data[:, :, 0]
+
         ncfile.close()
+
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
 
         image, colorbar = self.getb64image(sliced_data)
