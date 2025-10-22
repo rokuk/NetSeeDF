@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLa
 from netCDF4 import Dataset, num2date
 
 import utils
+from tableutils import TableModel
 
 
 # Window which shows a table of the data for the chosen variable and some info about the variable.
@@ -218,7 +219,7 @@ class DataWindow3d(QWidget):
         else:
             ylabels = self.ydata.astype(str)
 
-        self.model = utils.TableModel(initial_data, xlabels, ylabels)
+        self.model = TableModel(initial_data, xlabels, ylabels)
         self.data_table.setModel(self.model)
 
         max_xwidth = self.model.get_xwidth(self.data_table)
@@ -237,19 +238,8 @@ class DataWindow3d(QWidget):
         self.setLayout(layout)
 
     def get_selected_data(self):
-        slice_index = self.slice_spinner.value()
-
-        ncfile = Dataset(self.file_path, "r")
-        variable_data = ncfile.variables[self.variable_name]
-        if self.slice_dim_index == 0: # select the slice and read it into memory from disk
-            sliced_data = variable_data[slice_index, :, :]
-        elif self.slice_dim_index == 1:
-            sliced_data = variable_data[:, slice_index, :]
-        else:
-            sliced_data = variable_data[:, :, slice_index]
-        ncfile.close()
-
-        return np.where(sliced_data == self.fill_value, np.nan, sliced_data) # replace fill values with numpy's NaN
+        sliced_data = utils.slice_data(self.file_path, self.variable_name, self.slice_dim_index, self.slice_spinner.value())
+        return  sliced_data # replace fill values with numpy's NaN
 
     def update_table(self):
         # get data for the new slice and update table with it

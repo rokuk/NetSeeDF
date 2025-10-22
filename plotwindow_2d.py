@@ -15,6 +15,9 @@ from netCDF4 import Dataset, num2date
 from cartopy import crs as ccrs
 import matplotlib.style as mplstyle
 from matplotlib import use as mpluse
+
+from plotbackend import Backend2d, WebChannelJS
+
 mplstyle.use('fast')
 mpluse("agg")
 
@@ -132,7 +135,7 @@ class PlotWindow2d(QWidget):
 
         # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
         self.channel = QWebChannel()
-        self.backend = utils.Backend2d(self.xdata, self.ydata, masked_data, self.show_map_popup)
+        self.backend = Backend2d(self.xdata, self.ydata, masked_data, self.show_map_popup)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
@@ -141,7 +144,7 @@ class PlotWindow2d(QWidget):
 
         scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
-        self.map.add_child(utils.WebChannelJS())
+        self.map.add_child(WebChannelJS())
 
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data)  # load the html
