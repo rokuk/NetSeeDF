@@ -128,7 +128,7 @@ class PlotWindow2d(QWidget):
         folium.raster_layers.ImageOverlay(
             image="data:image/png;base64," + image,
             bounds=[[ymin, xmin], [ymax, xmax]],
-            opacity=0.5
+            opacity=0.6
         ).add_to(self.map)
 
         folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size

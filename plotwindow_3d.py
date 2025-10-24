@@ -203,7 +203,7 @@ class PlotWindow3d(QWidget):
         folium.raster_layers.ImageOverlay(
             image="data:image/png;base64," + image,
             bounds=[[ymin, xmin], [ymax, xmax]],
-            opacity=0.5
+            opacity=0.6
         ).add_to(self.map)
 
         folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size
@@ -218,7 +218,6 @@ class PlotWindow3d(QWidget):
 
         with open("qwebchannel.js") as f:
             webchanneljs = f.read()
-        #webchanneljs = ""
 
         scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
@@ -227,12 +226,22 @@ class PlotWindow3d(QWidget):
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data)  # load the html
 
-        # display colorbar
+        # display colorbar and min, max fields
         qimage = QImage.fromData(colorbar)
         pixmap = QPixmap.fromImage(qimage)
         cbar = QLabel()
         cbar.setPixmap(pixmap)
         self.cbar = cbar
+
+        cbarcontainer = QWidget()
+        cbarcontainer_layout = QVBoxLayout()
+
+        maxcontainer = QWidget()
+        mincontainer = QWidget()
+
+        cbarcontainer_layout.addWidget(maxcontainer)
+        cbarcontainer_layout.addWidget(cbar)
+        cbarcontainer_layout.addWidget(mincontainer)
 
         maplayout.addWidget(cbar)
 

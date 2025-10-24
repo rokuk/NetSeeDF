@@ -1,7 +1,8 @@
 import numpy as np
 from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QMenu, QApplication, QFileDialog
+from PySide6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
 from netCDF4 import num2date, Dataset
+
 
 def slice_data(file_path, variable_name, slice_dim_index, slice_index):
     ncfile = Dataset(file_path, "r")
@@ -28,6 +29,7 @@ def show_context_menu(self, point):
         if action == copy_action:
             value = index.data()
             QApplication.clipboard().setText(str(value))
+
 
 def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, variable_name, file_path, x_dim_index, y_dim_index, slice_dim_index):
     index = self.data_table.indexAt(point)
@@ -65,15 +67,15 @@ def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, 
                 datetimes = tdata
 
             suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())
-            show_dialog_and_save(window_instance, [datetimes, timeseries], suggested_filename, False)
 
+            show_dialog_and_save(window_instance, [datetimes, timeseries], suggested_filename, window_instance.time_name, window_instance.variable_name, False)
 
 
 def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=True):
     dialog = QFileDialog(self, "Save File")
     dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
-    dialog.setNameFilters(["Excel File (*.xlsx)", "CSV File (*.csv)", "Text File (*.txt)"])
-    dialog.setDefaultSuffix("xlsx")
+    dialog.setNameFilters(["CSV File (*.csv)", "Tab-separated File (*.tsv)",  "Text File (*.txt)"])
+    dialog.setDefaultSuffix("csv")
     if use_last_dir: dialog.setDirectory(self.last_directory)  # Use last directory
     dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, False)
     dialog.selectFile(suggested_filename)
@@ -89,8 +91,14 @@ def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=T
                 ext = ".csv"
             elif "Text" in selected_filter:
                 ext = ".txt"
+            elif "Tab" in selected_filter:
+                ext = ".tsv"
             else:
-                ext = ""
+                dlg = QMessageBox(self)
+                dlg.setWindowTitle("NetSeeDF message")
+                dlg.setText("There was an error while saving the file: " + selected_filter)
+                dlg.exec()
+                return
 
             # Automatically add extension if not present
             if not file_path.lower().endswith(ext):
@@ -100,7 +108,8 @@ def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=T
             if use_last_dir: self.last_directory = str(QFileDialog.directory(dialog).absolutePath())
 
             if ext == ".txt":
-                np.savetxt(file_path, selected_data, delimiter=" ")
+                np.savetxt(file_path, selected_data, delimiter=" ", fmt='%s')
             elif ext == ".csv":
-                selected_data.to_csv(file_path, index=False, header=False)
-                np.savetxt(file_path, selected_data, delimiter=",")
+                np.savetxt(file_path, selected_data, delimiter=",", fmt='%s')
+            elif ext == ".tsv":
+                np.savetxt(file_path, selected_data, delimiter="\t", fmt='%s')
