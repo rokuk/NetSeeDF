@@ -1,6 +1,7 @@
 import base64
 import io
 
+from IPython.core.pylabtools import figsize
 from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
 import numpy as np
@@ -40,6 +41,7 @@ class PlotWindow3d(QWidget):
         self.tunits = None
         self.calendar = None
         self.units_are_kelvin = False
+        self.autoscale = True
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -233,20 +235,42 @@ class PlotWindow3d(QWidget):
         cbar.setPixmap(pixmap)
         self.cbar = cbar
 
-        cbarcontainer = QWidget()
-        cbarcontainer_layout = QVBoxLayout()
+        cbar_container = QWidget()
+        cbar_container_layout = QVBoxLayout()
+        max_container = QWidget()
+        min_container = QWidget()
+        max_container_layout = QHBoxLayout()
+        min_container_layout = QHBoxLayout()
+        max_spinner = QSpinBox()
+        min_spinner = QSpinBox()
+        self.max_spinner = max_spinner
+        self.min_spinner = min_spinner
 
-        maxcontainer = QWidget()
-        mincontainer = QWidget()
+        max_container_layout.addWidget(QLabel("Max: "))
+        max_container_layout.addWidget(max_spinner)
+        min_container_layout.addWidget(QLabel("Min: "))
+        min_container_layout.addWidget(min_spinner)
+        max_container.setLayout(max_container_layout)
+        min_container.setLayout(min_container_layout)
 
-        cbarcontainer_layout.addWidget(maxcontainer)
-        cbarcontainer_layout.addWidget(cbar)
-        cbarcontainer_layout.addWidget(mincontainer)
+        autoscale_widget = QWidget()
+        autoscale_layout = QHBoxLayout()
+        autoscale_checkbox = QCheckBox()
+        autoscale_checkbox.checkStateChanged.connect(self.on_autoscale_changed)
+        autoscale_checkbox.setChecked(True)
+        self.autoscale_checkbox = autoscale_checkbox
+        autoscale_layout.addWidget(autoscale_checkbox)
+        autoscale_layout.addWidget(QLabel("auto scale"))
+        autoscale_widget.setLayout(autoscale_layout)
 
-        maplayout.addWidget(cbar)
+        cbar_container_layout.addWidget(autoscale_widget)
+        cbar_container_layout.addWidget(max_container)
+        cbar_container_layout.addWidget(cbar)
+        cbar_container_layout.addWidget(min_container)
+        cbar_container.setLayout(cbar_container_layout)
 
+        maplayout.addWidget(cbar_container)
         layout.addWidget(mapwidget)
-
         self.setLayout(layout)
 
     def show_map_popup(self, lat, lon, value):
@@ -308,14 +332,22 @@ class PlotWindow3d(QWidget):
         ax = plt.axes(projection=ccrs.epsg(3857))
 
         source_crs = ccrs.PlateCarree()
+        cmap = "inferno"
+
+        if self.autoscale:
+            max_value = np.max(image_data)
+            min_value = np.min(image_data)
+            self.max_spinner.setValue(max_value)
+            self.min_spinner.setValue(min_value)
+        else:
+            max_value = self.max_spinner.value()
+            min_value = self.min_spinner.value()
 
         if self.has_units:
             if self.variable_units in ["mm", "day"]:  # set the color scale minimum value to 0
-                mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs, vmin=0)
-            else:
-                mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs)
-        else:
-            mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap="inferno", transform=source_crs)
+                min_value = 0
+
+        mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap=cmap, transform=source_crs, vmin=min_value, vmax=max_value)
 
         xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
         ymin = max(ymin, -85)
@@ -324,7 +356,7 @@ class PlotWindow3d(QWidget):
         ax.axis("off")
         plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=400)
 
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(7,7))
         cbar = fig.colorbar(mpb, ax=ax)
         if self.has_units:
             if self.units_are_kelvin:
@@ -343,4 +375,14 @@ class PlotWindow3d(QWidget):
         return base64.b64encode(image.read()).decode("utf-8"), colorbar.read()
 
     def on_convert_temp(self):
+        self.update_map()
+
+    def on_autoscale_changed(self):
+        self.autoscale = self.autoscale_checkbox.isChecked()
+        if self.autoscale:
+            self.max_spinner.setEnabled(False)
+            self.min_spinner.setEnabled(False)
+        else:
+            self.max_spinner.setEnabled(True)
+            self.min_spinner.setEnabled(True)
         self.update_map()
