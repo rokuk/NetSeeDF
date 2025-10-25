@@ -142,6 +142,7 @@ class MainWindow(QMainWindow):
             self.tree.setCurrentItem(item)
 
 
+    # Get currently selected item in the tree view and the number of dimensions of the variable
     def get_info_about_selected(self):
         current_item = self.tree.currentItem()
         variable_name = current_item.data(0, Qt.ItemDataRole.DisplayRole)

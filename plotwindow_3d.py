@@ -1,7 +1,8 @@
 import base64
 import io
 
-from IPython.core.pylabtools import figsize
+import matplotlib as mpl
+from matplotlib.colors import Normalize
 from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
 import numpy as np
@@ -11,17 +12,18 @@ from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEngineUrlScheme
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox, \
+    QDoubleSpinBox
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
 from cartopy import crs as ccrs
 import matplotlib.style as mplstyle
-from matplotlib import use as mpluse
 
 from plotbackend import WebChannelJS, Backend3d
+from utils import round_max_value, round_min_value, calculate_step, grid_boundaries_from_centers
 
 mplstyle.use('fast')
-mpluse("agg")
+mpl.use("agg")
 
 import utils
 
@@ -42,6 +44,7 @@ class PlotWindow3d(QWidget):
         self.calendar = None
         self.units_are_kelvin = False
         self.autoscale = True
+        self.state = "init"
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -90,6 +93,7 @@ class PlotWindow3d(QWidget):
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+        self.xboundaries, self.yboundaries = grid_boundaries_from_centers(self.xdata, self.ydata)
 
         try:
             self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
@@ -165,10 +169,6 @@ class PlotWindow3d(QWidget):
                 self.units_are_kelvin = True
                 layout.addWidget(temp_convert_widget)
 
-        scheme = QWebEngineUrlScheme(b'qrc')
-        scheme.setFlags(QWebEngineUrlScheme.Flag.LocalScheme | QWebEngineUrlScheme.Flag.LocalAccessAllowed)
-        QWebEngineUrlScheme.registerScheme(scheme)
-
         # folium map
         self.map = folium.Map(location=[0, 0], zoom_start=1)
         self.map._name = "folium"
@@ -180,6 +180,38 @@ class PlotWindow3d(QWidget):
         maplayout = QHBoxLayout()
         mapwidget.setLayout(maplayout)
         maplayout.addWidget(self.view)
+
+        cbar_container = QWidget()
+        cbar_container_layout = QVBoxLayout()
+        max_container = QWidget()
+        min_container = QWidget()
+        max_container_layout = QHBoxLayout()
+        min_container_layout = QHBoxLayout()
+        max_spinner = QDoubleSpinBox()
+        min_spinner = QDoubleSpinBox()
+        max_spinner.setEnabled(False)
+        min_spinner.setEnabled(False)
+        max_spinner.setRange(-1e300, 1e300)
+        min_spinner.setRange(-1e300, 1e300)
+        self.max_spinner = max_spinner
+        self.min_spinner = min_spinner
+
+        max_container_layout.addWidget(QLabel("Max: "))
+        max_container_layout.addWidget(self.max_spinner)
+        min_container_layout.addWidget(QLabel("Min: "))
+        min_container_layout.addWidget(self.min_spinner)
+        max_container.setLayout(max_container_layout)
+        min_container.setLayout(min_container_layout)
+
+        autoscale_widget = QWidget()
+        autoscale_layout = QHBoxLayout()
+        autoscale_checkbox = QCheckBox()
+        autoscale_checkbox.setChecked(True)
+        self.autoscale_checkbox = autoscale_checkbox
+        autoscale_layout.addWidget(autoscale_checkbox)
+        autoscale_layout.addWidget(QLabel("auto scale"))
+        autoscale_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        autoscale_widget.setLayout(autoscale_layout)
 
         # intial data load
         if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
@@ -193,15 +225,23 @@ class PlotWindow3d(QWidget):
 
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
 
+        # setup channel for communication between map js and python
+        self.channel = QWebChannel()
+        self.backend = Backend3d(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
+                                       slice_dim_index, self.show_map_popup, self)
+        self.backend.set_data(sliced_data)
+        self.channel.registerObject('backend', self.backend)
+        self.view.page().setWebChannel(self.channel)
+
+        # extent of map
+        xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
+        ymin = max(ymin, -85)
+        ymax = min(ymax, 85)
+        self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
+
         image, colorbar = self.getb64image(sliced_data)
 
         # map raster layer
-        xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
-        if ymin < -85:
-            ymin = -85
-        if ymax > 85:
-            ymax = 85
-
         folium.raster_layers.ImageOverlay(
             image="data:image/png;base64," + image,
             bounds=[[ymin, xmin], [ymax, xmax]],
@@ -209,14 +249,6 @@ class PlotWindow3d(QWidget):
         ).add_to(self.map)
 
         folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size
-
-        # setup QWebChannel, initialize backend instance and register the channel so the JS instance can access the backend object
-        self.channel = QWebChannel()
-        self.backend = Backend3d(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
-                                       slice_dim_index, self.show_map_popup, self)
-        self.backend.set_data(sliced_data)
-        self.channel.registerObject('backend', self.backend)
-        self.view.page().setWebChannel(self.channel)
 
         with open("qwebchannel.js") as f:
             webchanneljs = f.read()
@@ -228,40 +260,15 @@ class PlotWindow3d(QWidget):
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data)  # load the html
 
-        # display colorbar and min, max fields
         qimage = QImage.fromData(colorbar)
         pixmap = QPixmap.fromImage(qimage)
         cbar = QLabel()
         cbar.setPixmap(pixmap)
         self.cbar = cbar
 
-        cbar_container = QWidget()
-        cbar_container_layout = QVBoxLayout()
-        max_container = QWidget()
-        min_container = QWidget()
-        max_container_layout = QHBoxLayout()
-        min_container_layout = QHBoxLayout()
-        max_spinner = QSpinBox()
-        min_spinner = QSpinBox()
-        self.max_spinner = max_spinner
-        self.min_spinner = min_spinner
-
-        max_container_layout.addWidget(QLabel("Max: "))
-        max_container_layout.addWidget(max_spinner)
-        min_container_layout.addWidget(QLabel("Min: "))
-        min_container_layout.addWidget(min_spinner)
-        max_container.setLayout(max_container_layout)
-        min_container.setLayout(min_container_layout)
-
-        autoscale_widget = QWidget()
-        autoscale_layout = QHBoxLayout()
-        autoscale_checkbox = QCheckBox()
+        max_spinner.valueChanged.connect(self.scale_changed)
+        min_spinner.valueChanged.connect(self.scale_changed)
         autoscale_checkbox.checkStateChanged.connect(self.on_autoscale_changed)
-        autoscale_checkbox.setChecked(True)
-        self.autoscale_checkbox = autoscale_checkbox
-        autoscale_layout.addWidget(autoscale_checkbox)
-        autoscale_layout.addWidget(QLabel("auto scale"))
-        autoscale_widget.setLayout(autoscale_layout)
 
         cbar_container_layout.addWidget(autoscale_widget)
         cbar_container_layout.addWidget(max_container)
@@ -271,6 +278,7 @@ class PlotWindow3d(QWidget):
 
         maplayout.addWidget(cbar_container)
         layout.addWidget(mapwidget)
+
         self.setLayout(layout)
 
     def show_map_popup(self, lat, lon, value):
@@ -326,38 +334,78 @@ class PlotWindow3d(QWidget):
         self.close_map_popups()
 
     def getb64image(self, image_data):
+        self.state = "generating image"
+
         image = io.BytesIO()
         colorbar = io.BytesIO()
 
         ax = plt.axes(projection=ccrs.epsg(3857))
 
         source_crs = ccrs.PlateCarree()
-        cmap = "inferno"
+
+        max_value = np.nanmax(image_data)
+        min_value = np.nanmin(image_data)
+        rounded_max_value = round_max_value(max_value)
+        rounded_min_value = round_min_value(min_value)
+        step = calculate_step(rounded_min_value, rounded_max_value)
+        steporder = utils.getorder(step)
+
+        if steporder < 0:
+            stepdecimals = abs(steporder)
+        else:
+            stepdecimals = 0
+            step = 1
 
         if self.autoscale:
-            max_value = np.max(image_data)
-            min_value = np.min(image_data)
-            self.max_spinner.setValue(max_value)
-            self.min_spinner.setValue(min_value)
+            self.max_spinner.setDecimals(stepdecimals)
+            self.min_spinner.setDecimals(stepdecimals)
+            self.max_spinner.setSingleStep(step)
+            self.min_spinner.setSingleStep(step)
+
+            if steporder < 0:
+                scale_max_value = rounded_max_value
+                scale_min_value = rounded_min_value
+            else:
+                scale_max_value = max_value
+                scale_min_value = min_value
+
+            self.max_spinner.setValue(scale_max_value)
+            self.min_spinner.setValue(scale_min_value)
+
         else:
-            max_value = self.max_spinner.value()
-            min_value = self.min_spinner.value()
+            scale_max_value = self.max_spinner.value()
+            scale_min_value = self.min_spinner.value()
 
         if self.has_units:
-            if self.variable_units in ["mm", "day"]:  # set the color scale minimum value to 0
-                min_value = 0
+            if self.variable_units in ["mm", "day"]:  # force the color scale minimum value to 0
+                scale_min_value = 0
+                if self.autoscale:
+                    self.min_spinner.setValue(0)
 
-        mpb = ax.pcolormesh(self.xdata, self.ydata, image_data, cmap=cmap, transform=source_crs, vmin=min_value, vmax=max_value)
-
-        xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
-        ymin = max(ymin, -85)
-        ymax = min(ymax, 85)
-        ax.set_extent([xmin, xmax, ymin, ymax], crs=source_crs)
+        ax.set_extent([self.xmin, self.xmax, self.ymin, self.ymax], crs=source_crs)
         ax.axis("off")
-        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=400)
 
-        fig, ax = plt.subplots(figsize=(7,7))
-        cbar = fig.colorbar(mpb, ax=ax)
+        norm = Normalize(vmin=scale_min_value, vmax=scale_max_value)
+        cmap = mpl.cm.inferno
+        cmap.set_extremes(under='grey', over='red')
+        sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+
+        ax.pcolormesh(self.xboundaries, self.yboundaries, image_data, cmap=cmap, transform=source_crs, vmin=scale_min_value, vmax=scale_max_value, shading="flat")
+        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=300)
+
+        fig, ax = plt.subplots(figsize=(1.1,3.5), layout="constrained")
+
+        if scale_min_value > min_value and scale_max_value < max_value:
+            extend = "both"
+        elif scale_min_value > min_value:
+            extend = "min"
+        elif scale_max_value < max_value:
+            extend = "max"
+        else:
+            extend = "neither"
+
+        cbar = fig.colorbar(sm, cax=ax, extend=extend)
+
         if self.has_units:
             if self.units_are_kelvin:
                 if self.temp_convert_checkbox.isChecked():
@@ -366,23 +414,29 @@ class PlotWindow3d(QWidget):
                     cbar.set_label(self.variable_units)
             else:
                 cbar.set_label(self.variable_units)
-        ax.remove()
         fig.savefig(colorbar, format="png", bbox_inches="tight")
 
         plt.close("all")
         image.seek(0)
         colorbar.seek(0)
+
+        self.state = "image done"
         return base64.b64encode(image.read()).decode("utf-8"), colorbar.read()
 
     def on_convert_temp(self):
         self.update_map()
+
+    def scale_changed(self):
+        if self.state != "generating image": # hack to not trigger update if we are in the middle of one
+            self.update_map()
 
     def on_autoscale_changed(self):
         self.autoscale = self.autoscale_checkbox.isChecked()
         if self.autoscale:
             self.max_spinner.setEnabled(False)
             self.min_spinner.setEnabled(False)
+            self.update_map()
         else:
             self.max_spinner.setEnabled(True)
             self.min_spinner.setEnabled(True)
-        self.update_map()
+

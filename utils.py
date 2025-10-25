@@ -2,6 +2,83 @@ import numpy as np
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QMenu, QApplication, QFileDialog, QMessageBox
 from netCDF4 import num2date, Dataset
+from math import floor, log10, ceil, copysign
+
+
+def getorder(x):
+    return floor(log10(abs(x)))
+
+
+def round_max_value(x):
+    if x == 0:
+        return 0.0
+    order = getorder(x)
+    scale = 10 ** order
+    rounded = ceil(abs(x) / scale) * scale
+    return copysign(rounded, x)
+
+
+def round_min_value(x):
+    if x == 0:
+        return 0.0
+    order = getorder(x)
+    scale = 10 ** order
+    rounded = floor(abs(x) / scale) * scale
+    return copysign(rounded, x)
+
+
+def calculate_step(minvalue, maxvalue):
+    if minvalue == 0:
+        value = maxvalue
+    elif maxvalue == 0:
+        value = minvalue
+    else:
+        minorder = getorder(minvalue)
+        maxorder = getorder(maxvalue)
+
+        if minorder < maxorder:
+            value = minvalue
+        else:
+            value = maxvalue
+
+    if value == 0:
+        return 0.1
+
+    order = floor(log10(abs(value)))
+    return 10 ** order
+
+
+def grid_boundaries_from_centers(x_centers, y_centers):
+    if len(x_centers) < 2 or len(y_centers) < 2:
+        return  x_centers, y_centers # dont do anything if only one point or none
+
+    x_centers = np.array(x_centers)
+    y_centers = np.array(y_centers)
+
+    # Compute midpoints between centers
+    x_bounds = (x_centers[:-1] + x_centers[1:]) / 2
+    y_bounds = (y_centers[:-1] + y_centers[1:]) / 2
+
+    # Extend edges to cover outer boundaries
+    x_bounds = np.concatenate((
+        [x_centers[0] - (x_bounds[0] - x_centers[0])],
+        x_bounds,
+        [x_centers[-1] + (x_centers[-1] - x_bounds[-1])]
+    ))
+
+    # TODO only do this if lon,lat crs
+    if x_bounds[0] < -180:
+        x_bounds[0] = -180
+    if x_bounds[-1] > 180:
+        x_bounds[-1] = 180
+
+    y_bounds = np.concatenate((
+        [y_centers[0] - (y_bounds[0] - y_centers[0])],
+        y_bounds,
+        [y_centers[-1] + (y_centers[-1] - y_bounds[-1])]
+    ))
+
+    return x_bounds, y_bounds
 
 
 def slice_data(file_path, variable_name, slice_dim_index, slice_index):
