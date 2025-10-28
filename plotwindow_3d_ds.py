@@ -1,8 +1,6 @@
-import base64
 import io
 
 import matplotlib as mpl
-from matplotlib.colors import Normalize
 from offline_folium import offline # must be before importing folium, DO NOT REMOVE
 import folium  # must be after importing offline folium
 import numpy as np
@@ -15,8 +13,12 @@ from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBo
     QDoubleSpinBox
 from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
-from cartopy import crs as ccrs
 import matplotlib.style as mplstyle
+import xarray as xr
+import datashader as ds
+import datashader.transfer_functions as tf
+from pyproj import Transformer
+import urllib.parse
 
 from plotbackend import WebChannelJS, Backend3d
 from utils import round_max_value, round_min_value, calculate_step, grid_boundaries_from_centers
@@ -27,7 +29,7 @@ mpl.use("agg")
 import utils
 
 
-class PlotWindow3d(QWidget):
+class PlotWindow3dDS(QWidget):
     def __init__(self, file_name, variable_name, file_path):
         super().__init__()
 
@@ -43,7 +45,7 @@ class PlotWindow3d(QWidget):
         self.calendar = None
         self.units_are_kelvin = False
         self.autoscale = True
-        self.state = "init"
+        self.source_crs = "EPSG:4326"
 
         ncfile = Dataset(file_path, "r")
         variable_data = ncfile.variables[variable_name]
@@ -89,9 +91,12 @@ class PlotWindow3d(QWidget):
         self.slice_dim_index = slice_dim_index
 
         # get x, y and time axis variable data
-        self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
-        self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
-        self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+        self.xname = variable_data.dimensions[x_dim_index]
+        self.yname = variable_data.dimensions[y_dim_index]
+        self.tname = variable_data.dimensions[slice_dim_index]
+        self.xdata = ncfile.variables[self.xname][:]
+        self.ydata = ncfile.variables[self.yname][:]
+        self.tdata = ncfile.variables[self.tname][:]
         self.xboundaries, self.yboundaries = grid_boundaries_from_centers(self.xdata, self.ydata)
 
         try:
@@ -220,8 +225,6 @@ class PlotWindow3d(QWidget):
         else:
             sliced_data = variable_data[:, :, 0]
 
-        ncfile.close()
-
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
 
         # setup channel for communication between map js and python
@@ -232,20 +235,37 @@ class PlotWindow3d(QWidget):
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
-        # extent of map
         xmin, ymin, xmax, ymax = np.min(self.xdata), np.min(self.ydata), np.max(self.xdata), np.max(self.ydata)
         ymin = max(ymin, -85)
         ymax = min(ymax, 85)
-        self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
 
-        image, colorbar = self.getb64image(sliced_data)
+        with xr.open_dataset(self.file_path, mask_and_scale=True) as ds_nc:
+            var2d = ds_nc[self.variable_name].isel({self.tname: 0})
 
-        # map raster layer
+        max_value = np.nanmax(var2d.values)
+        min_value = np.nanmin(var2d.values)
+        rounded_max_value = round_max_value(max_value)
+        rounded_min_value = round_min_value(min_value)
+
+        urldict = {
+            "filepath": self.file_path,
+            "varname": self.variable_name,
+            "tslice": self.slice_spinner.value(),
+            "tname": self.tname,
+            "xname": self.xname,
+            "yname": self.yname,
+            "projstr": self.source_crs,
+            "vmin": rounded_min_value,
+            "vmax": rounded_max_value
+        }
+
         folium.raster_layers.ImageOverlay(
-            image="data:image/png;base64," + image,
+            image="http://localhost:33764/image?" + urllib.parse.urlencode(urldict),
             bounds=[[ymin, xmin], [ymax, xmax]],
             opacity=0.6
         ).add_to(self.map)
+
+        ncfile.close()
 
         folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size
 
@@ -259,7 +279,21 @@ class PlotWindow3d(QWidget):
         html_data = self.map.get_root().render()
         self.view.setHtml(html_data)  # load the html
 
-        qimage = QImage.fromData(colorbar)
+        # 1️⃣ Create a figure for colorbar only
+        fig, ax = plt.subplots(figsize=(2, 6))  # narrow vertical bar
+        fig.subplots_adjust(right=0.5)
+
+        # 2️⃣ Create a colorbar
+        norm = mpl.colors.Normalize(vmin=rounded_min_value, vmax=rounded_max_value)
+        cbar = mpl.colorbar.ColorbarBase(ax, cmap=mpl.cm.inferno, norm=norm)
+
+        cbar.set_label(self.variable_name + " [" + self.variable_units + "]")  # or your variable name
+
+        colorbar = io.BytesIO()
+        fig.savefig(colorbar, format="png", bbox_inches="tight")
+        colorbar.seek(0)
+
+        qimage = QImage.fromData(colorbar.read())
         pixmap = QPixmap.fromImage(qimage)
         cbar = QLabel()
         cbar.setPixmap(pixmap)
@@ -291,7 +325,7 @@ class PlotWindow3d(QWidget):
         self.view.page().runJavaScript("folium_1.closePopup();")
 
     def update_map(self):
-        slice_index = self.slice_spinner.value()  # get the index of the slice from the spinner
+        slice_index = self.slice_spinner.value() # get the index of the slice from the spinner
 
         if self.can_convert_datetime:
             try:
@@ -300,15 +334,11 @@ class PlotWindow3d(QWidget):
             except Exception:
                 pass
 
-        sliced_data = utils.slice_data(self.file_path, self.variable_name, self.slice_dim_index, slice_index)
-
-        sliced_data = ma.masked_equal(sliced_data, self.fill_value)  # mask missing values (given by the _FillValue in the NetCDF file)
-
         if self.has_units:
             if self.units_are_kelvin:
                 if self.temp_convert_checkbox.isChecked():
                     try:
-                        sliced_data = sliced_data - 273.15
+                        pass # TODO
                     except Exception:
                         self.temp_convert_checkbox.setChecked(False)
                         dlg = QMessageBox(self)
@@ -317,118 +347,66 @@ class PlotWindow3d(QWidget):
                         dlg.exec()
                         return
 
-        self.backend.set_data(sliced_data)
+        #self.backend.set_data(sliced_data) TODO
 
-        # generate images
-        image, colorbar = self.getb64image(sliced_data)
+        if self.autoscale:
+            vmin = None
+            vmax = None
+        else:
+            vmin = self.min_spinner.value()
+            vmax = self.max_spinner.value()
 
-        # update image overlay layer on the folium map
-        js_code = 'var overlay = null;folium_1.eachLayer(function(layer){if(layer instanceof L.ImageOverlay){overlay = layer;}});if(overlay !== null){overlay.setUrl("data:image/png;base64,' + image + '");}'
-        self.view.page().runJavaScript(js_code)
+        urldict = {
+            "filepath": self.file_path,
+            "varname": self.variable_name,
+            "tslice": self.slice_spinner.value(),
+            "tname": self.tname,
+            "xname": self.xname,
+            "yname": self.yname,
+            "projstr": self.source_crs,
+            "vmin": vmin,
+            "vmax": vmax
+        }
 
+        # generate colorbar
+        colorbar = self.get_colorbar(self.min_spinner.value(), self.max_spinner.value())
         qimage = QImage.fromData(colorbar)
         pixmap = QPixmap.fromImage(qimage)
         self.cbar.setPixmap(pixmap)
 
+        # update image overlay layer on the folium map
+        js_code = 'var overlay = null;folium_1.eachLayer(function(layer) {if (layer instanceof L.ImageOverlay) {overlay = layer;}});if (overlay !== null) {overlay.setUrl("http://localhost:33764/image?' + urllib.parse.urlencode(urldict) + '");};'
+        self.view.page().runJavaScript(js_code)
+
         self.close_map_popups()
 
-    def getb64image(self, image_data):
-        self.state = "generating image"
-
-        image = io.BytesIO()
-        colorbar = io.BytesIO()
-
-        ax = plt.axes(projection=ccrs.epsg(3857))
-
-        source_crs = ccrs.PlateCarree()
-
-        max_value = np.nanmax(image_data)
-        min_value = np.nanmin(image_data)
-        rounded_max_value = round_max_value(max_value)
-        rounded_min_value = round_min_value(min_value)
-        step = calculate_step(rounded_min_value, rounded_max_value)
-        steporder = utils.getorder(step)
-
-        if steporder < 0:
-            stepdecimals = abs(steporder)
-        else:
-            stepdecimals = 0
-            step = 1
-
-        if self.autoscale:
-            self.max_spinner.setDecimals(stepdecimals)
-            self.min_spinner.setDecimals(stepdecimals)
-            self.max_spinner.setSingleStep(step)
-            self.min_spinner.setSingleStep(step)
-
-            if steporder < 0:
-                scale_max_value = rounded_max_value
-                scale_min_value = rounded_min_value
-            else:
-                scale_max_value = max_value
-                scale_min_value = min_value
-
-            self.max_spinner.setValue(scale_max_value)
-            self.min_spinner.setValue(scale_min_value)
-
-        else:
-            scale_max_value = self.max_spinner.value()
-            scale_min_value = self.min_spinner.value()
-
+    def get_colorbar(self, min_value, max_value):
         if self.has_units:
             if self.variable_units in ["mm", "day"]:  # force the color scale minimum value to 0
-                scale_min_value = 0
-                if self.autoscale:
-                    self.min_spinner.setValue(0)
+                min_value = 0
 
-        ax.set_extent([self.xmin, self.xmax, self.ymin, self.ymax], crs=source_crs)
-        ax.axis("off")
+        # 1️⃣ Create a figure for colorbar only
+        fig, ax = plt.subplots(figsize=(2, 6))  # narrow vertical bar
+        fig.subplots_adjust(right=0.5)
 
-        norm = Normalize(vmin=scale_min_value, vmax=scale_max_value)
-        cmap = mpl.cm.inferno
-        cmap.set_extremes(under='grey', over='red')
-        sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+        # 2️⃣ Create a colorbar
+        norm = mpl.colors.Normalize(vmin=min_value, vmax=max_value)
+        cbar = mpl.colorbar.ColorbarBase(ax, cmap=mpl.cm.inferno, norm=norm)
 
-        ax.pcolormesh(self.xboundaries, self.yboundaries, image_data, cmap=cmap, transform=source_crs, vmin=scale_min_value, vmax=scale_max_value, shading="flat")
-        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=300)
+        cbar.set_label(self.variable_name + " [" + self.variable_units + "]")  # or your variable name
 
-        fig, ax = plt.subplots(figsize=(1.1,3.5), layout="constrained")
-
-        if scale_min_value > min_value and scale_max_value < max_value:
-            extend = "both"
-        elif scale_min_value > min_value:
-            extend = "min"
-        elif scale_max_value < max_value:
-            extend = "max"
-        else:
-            extend = "neither"
-
-        cbar = fig.colorbar(sm, cax=ax, extend=extend)
-
-        if self.has_units:
-            if self.units_are_kelvin:
-                if self.temp_convert_checkbox.isChecked():
-                    cbar.set_label("°C")
-                else:
-                    cbar.set_label(self.variable_units)
-            else:
-                cbar.set_label(self.variable_units)
+        colorbar = io.BytesIO()
         fig.savefig(colorbar, format="png", bbox_inches="tight")
-
-        plt.close("all")
-        image.seek(0)
+        plt.close()
         colorbar.seek(0)
 
-        self.state = "image done"
-        return base64.b64encode(image.read()).decode("utf-8"), colorbar.read()
+        return colorbar.read()
 
     def on_convert_temp(self):
         self.update_map()
 
     def scale_changed(self):
-        if self.state != "generating image": # hack to not trigger update if we are in the middle of one
-            if self.max_spinner.value() > self.min_spinner.value():
-                self.update_map()
+        self.update_map()
 
     def on_autoscale_changed(self):
         self.autoscale = self.autoscale_checkbox.isChecked()
@@ -439,4 +417,3 @@ class PlotWindow3d(QWidget):
         else:
             self.max_spinner.setEnabled(True)
             self.min_spinner.setEnabled(True)
-

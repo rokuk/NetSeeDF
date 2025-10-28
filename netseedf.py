@@ -1,7 +1,8 @@
 import sys
 import traceback
+from threading import Thread
 
-from plotwindow_2d import PlotWindow2d
+import image_server
 
 
 def excepthook(type, value, tback):
@@ -12,15 +13,17 @@ sys.excepthook = excepthook
 import os
 from pathlib import Path
 from netCDF4 import Dataset
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, QVBoxLayout, \
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, \
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
 
 from datawindow_1d import DataWindow1d
 from datawindow_2d import DataWindow2d
 from datawindow_3d import DataWindow3d
+from plotwindow_2d import PlotWindow2d
 from plotwindow_3d import PlotWindow3d
+from plotwindow_3d_ds import PlotWindow3dDS
 
 
 class MainWindow(QMainWindow):
@@ -77,6 +80,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(buttons_widget, 0, 1)
         main_layout.addWidget(text_area, 1, 1)
         self.setCentralWidget(main_widget)
+
+        # start the image generation server
+        server_thread = Thread(target=image_server.start_server, daemon=True)
+        server_thread.start()
 
 
     # Closes all windows when the MainWindow is closed.
@@ -183,7 +190,7 @@ class MainWindow(QMainWindow):
         num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
 
         if num_dimensions == 3:
-            plotw = PlotWindow3d(file_name, variable_name, file_path)
+            plotw = PlotWindow3dDS(file_name, variable_name, file_path)
         elif num_dimensions == 2:
             plotw = PlotWindow2d(file_name, variable_name, file_path)
         else:
