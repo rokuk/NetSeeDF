@@ -36,16 +36,16 @@ thread.start()
 
 @app.route('/image', methods=['GET'])
 def generate_image():
-    result_queue = queue.Queue()
     args = request.args
 
+    result_queue = queue.Queue()
     task_queue.put({
-        'args': (args.get('filepath'), args.get('varname'), args.get('tslice'), args.get('tname'), args.get('xname'), args.get('yname'), args.get('projstr'), args.get('vmin'), args.get('vmax')),
+        'args': (args.get('filepath'), args.get('varname'), args.get('tslice'), args.get('tname'), args.get('xname'),
+                 args.get('yname'), args.get('projstr'), args.get('vmin'), args.get('vmax')),
         'result': result_queue
     })
 
     img_buffer = result_queue.get()
-
     return send_file(img_buffer, mimetype='image/png')
 
 def process_image_request(filepath, varname, tslice, tname, xname, yname, projstr, vmin, vmax):

@@ -15,18 +15,13 @@ from matplotlib import pyplot as plt
 from netCDF4 import Dataset, num2date
 import matplotlib.style as mplstyle
 import xarray as xr
-import datashader as ds
-import datashader.transfer_functions as tf
-from pyproj import Transformer
 import urllib.parse
 
 from plotbackend import WebChannelJS, Backend3d
-from utils import round_max_value, round_min_value, calculate_step, grid_boundaries_from_centers
+from utils import round_max_value, round_min_value, grid_boundaries_from_centers
 
 mplstyle.use('fast')
 mpl.use("agg")
-
-import utils
 
 
 class PlotWindow3dDS(QWidget):
