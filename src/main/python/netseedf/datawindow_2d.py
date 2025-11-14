@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QLabel, \
+from PySide6.QtWidgets import QCheckBox, QMessageBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
     QHBoxLayout, QPushButton, QTableView
 from netCDF4 import Dataset, num2date
 

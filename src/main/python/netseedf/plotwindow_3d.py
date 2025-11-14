@@ -3,8 +3,8 @@ import io
 
 import matplotlib as mpl
 from matplotlib.colors import Normalize
-from offline_folium import offline # must be before importing folium, DO NOT REMOVE
-import folium  # must be after importing offline folium
+import offline # must be before importing folium, DO NOT REMOVE
+#import folium  # must be after importing offline folium
 import numpy as np
 import numpy.ma as ma
 from PySide6.QtCore import Qt
@@ -28,8 +28,12 @@ import utils
 
 
 class PlotWindow3d(QWidget):
-    def __init__(self, file_name, variable_name, file_path):
+    def __init__(self, file_name, variable_name, file_path, appcontext):
         super().__init__()
+
+        offline.set_appcontext(appcontext)
+        offline.setup_folium()
+        import folium
 
         self.setWindowTitle(variable_name + " - NetSeeDF")
         self.setMinimumSize(650, 600)
@@ -249,10 +253,7 @@ class PlotWindow3d(QWidget):
 
         folium.FitOverlays().add_to(self.map)  # fit the view to the overlay size
 
-        with open("qwebchannel.js") as f:
-            webchanneljs = f.read()
-
-        scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
+        scriptelement = folium.Element('<script>' + appcontext.webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
         self.map.add_child(WebChannelJS())
 

@@ -42,8 +42,11 @@ class Backend3d(QObject):
             gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
             gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
             self.last_gridi, self.last_gridj = gridi, gridj
-            self.show_map_popup(gridlat, gridlon,
-                                gridval)  # show popup with lat, lon and value of the closest grid point
+            self.show_map_popup(gridlat, gridlon, gridval)  # show popup with lat, lon and value of the closest grid point
+
+    @Slot()
+    def on_overlay_loaded(self):
+        print("loaded")
 
     @Slot()
     def on_export_requested(self):

@@ -1,0 +1,9 @@
+jinja2
+PySide6
+matplotlib
+numpy
+cartopy
+folium
+netCDF4
+openpyxl
+cftime

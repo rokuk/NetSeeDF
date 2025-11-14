@@ -1,8 +1,8 @@
 import base64
 import io
 
-from offline_folium import offline # must be before importing folium, DO NOT REMOVE
-import folium  # must be after importing offline folium
+import offline # must be before importing folium, DO NOT REMOVE
+#import folium  # must be after importing offline folium
 import numpy as np
 import numpy.ma as ma
 from PySide6.QtGui import QPixmap, QImage
@@ -25,7 +25,7 @@ import utils
 
 
 class PlotWindow2d(QWidget):
-    def __init__(self, file_name, variable_name, file_path):
+    def __init__(self, file_name, variable_name, file_path, appcontext):
         super().__init__()
 
         self.setWindowTitle(variable_name + " - NetSeeDF")
@@ -139,10 +139,7 @@ class PlotWindow2d(QWidget):
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
 
-        with open("qwebchannel.js") as f:
-            webchanneljs = f.read()
-
-        scriptelement = folium.Element('<script>' + webchanneljs + '</script>')
+        scriptelement = folium.Element('<script>' + appcontext.webchanneljs + '</script>')
         self.map.get_root().html.add_child(scriptelement)
         self.map.add_child(WebChannelJS())
 

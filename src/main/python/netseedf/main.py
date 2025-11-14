@@ -1,13 +1,14 @@
 import sys
 import traceback
-from threading import Thread
 
-import image_server
+from fbs_runtime.application_context import cached_property
+from fbs_runtime.application_context.PySide6 import ApplicationContext
 
 
 def excepthook(type, value, tback):
     traceback.print_exception(type, value, tback)
     sys.__excepthook__(type, value, tback)
+
 
 sys.excepthook = excepthook
 import os
@@ -15,20 +16,20 @@ from pathlib import Path
 from netCDF4 import Dataset
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, \
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt
 
 from datawindow_1d import DataWindow1d
 from datawindow_2d import DataWindow2d
 from datawindow_3d import DataWindow3d
 from plotwindow_2d import PlotWindow2d
 from plotwindow_3d import PlotWindow3d
-from plotwindow_3d_ds import PlotWindow3dDS
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, appcontext):
         super().__init__()
+
+        self.appcontext = appcontext
 
         self.setWindowTitle("NetSeeDF")
         self.setMinimumSize(900, 400)
@@ -81,16 +82,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(text_area, 1, 1)
         self.setCentralWidget(main_widget)
 
-        # start the image generation server
-        server_thread = Thread(target=image_server.start_server, daemon=True)
-        server_thread.start()
-
-
     # Closes all windows when the MainWindow is closed.
     def closeEvent(self, event):
         QApplication.closeAllWindows()
         event.accept()
-
 
     # Show a file dialog and add the selected file to the tree of files and the variables they contain
     # Called when 'Open NetCDF file' button is clicked
@@ -126,7 +121,10 @@ class MainWindow(QMainWindow):
                     try:
                         longname = ncfile.variables[var].standard_name
                     except Exception:
-                        pass
+                        try:
+                            longname = ncfile.variables[var].description
+                        except Exception:
+                            pass
 
                 shapeofdata = ""
                 try:
@@ -136,9 +134,9 @@ class MainWindow(QMainWindow):
                 child = QTreeWidgetItem([var, longname, shapeofdata])
                 item.addChild(child)
 
-            #print(ncfile.groups)
+            # print(ncfile.groups)
 
-            #for children in walktree(ncfile):
+            # for children in walktree(ncfile):
             #    for child in children:
             #        print(child)
 
@@ -147,7 +145,6 @@ class MainWindow(QMainWindow):
             self.tree.addTopLevelItem(item)
             self.tree.expandItem(item)
             self.tree.setCurrentItem(item)
-
 
     # Get currently selected item in the tree view and the number of dimensions of the variable
     def get_info_about_selected(self):
@@ -162,7 +159,6 @@ class MainWindow(QMainWindow):
         ncfile.close()
 
         return num_dimensions, file_name, variable_name, file_path
-
 
     # Displays a table of the data for the selected variable in a new window
     def show_data(self):
@@ -184,15 +180,14 @@ class MainWindow(QMainWindow):
         dataw.show()
         self.open_windows.append(dataw)
 
-
     # Plot the data for the selected variable in a new window
     def show_map(self):
         num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
 
         if num_dimensions == 3:
-            plotw = PlotWindow3dDS(file_name, variable_name, file_path)
+            plotw = PlotWindow3d(file_name, variable_name, file_path, self.appcontext)
         elif num_dimensions == 2:
-            plotw = PlotWindow2d(file_name, variable_name, file_path)
+            plotw = PlotWindow2d(file_name, variable_name, file_path, self.appcontext)
         else:
             dlg = QMessageBox(self)
             dlg.setWindowTitle("NetSeeDF message")
@@ -209,7 +204,7 @@ class MainWindow(QMainWindow):
         selection_name = current.data(0, Qt.ItemDataRole.DisplayRole)
         parent = current.parent()
 
-        if parent is None: # file is selected
+        if parent is None:  # file is selected
             ncfile = Dataset(self.file_paths_dict[selection_name], "r")
 
             dimensiontext = "dimension \t size\n ----------------------\n"
@@ -223,15 +218,17 @@ class MainWindow(QMainWindow):
 
             ncfile.close()
 
-            self.text_area.setPlainText(selection_name + "\n\nDIMENSIONS\n" + dimensiontext + "\n\nATTRIBUTES\n" + attrtext)
+            self.text_area.setPlainText(
+                selection_name + "\n\nDIMENSIONS\n" + dimensiontext + "\n\nATTRIBUTES\n" + attrtext)
             self.plot_button.setEnabled(False)
             self.data_button.setEnabled(False)
 
-        else: # variable is selected
-            parent_name = parent.data(0, Qt.ItemDataRole.DisplayRole) # get the name of the file containing the selected variable
+        else:  # variable is selected
+            parent_name = parent.data(0, Qt.ItemDataRole.DisplayRole)  # get the name of the file containing the selected variable
             ncfile = Dataset(self.file_paths_dict[parent_name], "r")
             self.text_area.setPlainText(str(ncfile.variables[selection_name]))
-            if len(ncfile.variables[selection_name].shape) == 3 or len(ncfile.variables[selection_name].shape) == 2: # only enable plot button for 3-dimensional variables
+            if len(ncfile.variables[selection_name].shape) == 3 or len(
+                    ncfile.variables[selection_name].shape) == 2:  # only enable plot button for 3-dimensional variables
                 self.plot_button.setEnabled(True)
             else:
                 self.plot_button.setEnabled(False)
@@ -239,33 +236,24 @@ class MainWindow(QMainWindow):
             ncfile.close()
 
 
+class AppContext(ApplicationContext):
+    def run(self):
+        self.main_window.show()
+        return self.app.exec()
+
+    @cached_property
+    def main_window(self):
+        return MainWindow(self)
+
+    @cached_property
+    def webchanneljs(self):
+        webchannelcodepath = self.get_resource("qwebchannel.js")
+        with open(webchannelcodepath) as f:
+            webchanneljs = f.read()
+        return webchanneljs
+
+
 if __name__ == "__main__":
-    #import argparse
-    #import cProfile
-
-    #parser = argparse.ArgumentParser(description="NetSeeDF Application")
-    #parser.add_argument('--profile', action='store_true', help='Enable profiling')
-    #args = parser.parse_args()
-
-    try:  # Set taskbar icon on Windows
-        from ctypes import windll  # Only exists on Windows.
-        myappid = 'org.rokuk.netseedf'
-        windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-    except ImportError:
-        pass
-
-    app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon('icon.png'))
-    window = MainWindow()
-    window.show()
-
-    # if args.profile:
-    #     profile_filename = 'profile_stats.prof'
-    #     print(f"Profiling enabled. Results will be saved to {profile_filename}")
-    #     with cProfile.Profile() as pr:
-    #         exit_code = app.exec()
-    #     pr.dump_stats(profile_filename)
-    #     print(f"Profile data saved to {profile_filename}. You can analyze it with 'python -m pstats {profile_filename}' or a visualization tool like SnakeViz.")
-    #     sys.exit(exit_code)
-    # else:
-    sys.exit(app.exec())
+    appctxt = AppContext()
+    exit_code = appctxt.run()
+    sys.exit(exit_code)
