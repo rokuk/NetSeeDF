@@ -19,14 +19,12 @@ NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 ## Limitations
 - The software is still in development and currently supports only a limited number of NetCDF file structures.
 - Limited coordinate systems are implemented. Rotated pole grid (rlat, rlon) and grid reference systems (easting, northing) are not supported yet.
-- Only 3D variables can be plotted on a map
 - Showing map background (OpenStreetMap tiles) requires an internet connection
 
 ## Development
-NetSeeDF is written in Python 3.13
-- Install the required packages in `requirements.txt`
-- To make the map work offline, install the package `offline_folium` and run `python -m offline_folium` when online. If needed, change the path where `offline_folium` files were downloaded in [netseedf.spec](netseedf.spec)
-- Build the app for Windows with `pyinstaller netseedf.spec`
+NetSeeDF is written in Python 3.13. 
+- Install the required packages in `requirements/base.txt`
+- Run `src/main/python/netseedf/main.py`
 
 ## License
 
