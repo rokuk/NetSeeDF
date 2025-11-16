@@ -254,6 +254,13 @@ class AppContext(ApplicationContext):
 
 
 if __name__ == "__main__":
+    try:  # Set taskbar icon on Windows
+        from ctypes import windll  # Only exists on Windows.
+        myappid = 'org.rokuk.netseedf'
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except ImportError:
+        pass
+
     appctxt = AppContext()
     exit_code = appctxt.run()
     sys.exit(exit_code)

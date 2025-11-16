@@ -24,11 +24,13 @@ NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 ## Development
 NetSeeDF is written in Python 3.13. 
 - Install the required packages in `requirements/base.txt`
+- Run `downloadfolium.py`
 - Run `src/main/python/netseedf/main.py`
 
 ## License
 
-This project is released under [GPL v3 license](/LICENSES/GPL-3.0.txt).
+This project is released under [GPL v3](/LICENSES/GPL-3.0.txt) license.
 
 This projects includes the following third party software:
 - qwebchannel.js from https://github.com/qt/qtwebchannel licensed under [LGPL v3.0](/LICENSES/LGPL-3.0-only.txt)
+- offline_folium from https://github.com/robintw/offline_folium licensed under [EPL v2.0](/LICENSES/EPL-2.0.txt)

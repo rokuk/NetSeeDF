@@ -3,4 +3,4 @@ target
 .venv
 profile_stats.prof
 fbs_pro-1.2.7.tar.gz
-src/main/resources/base/offline_folium
+/src/main/resources/base/offline_folium
