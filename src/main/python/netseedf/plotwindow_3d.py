@@ -97,6 +97,7 @@ class PlotWindow3d(QWidget):
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
         self.xboundaries, self.yboundaries = grid_boundaries_from_centers(self.xdata, self.ydata)
+        self.slice_dimension_name = variable_data.dimensions[slice_dim_index]
 
         try:
             self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
@@ -231,7 +232,7 @@ class PlotWindow3d(QWidget):
         # setup channel for communication between map js and python
         self.channel = QWebChannel()
         self.backend = Backend3d(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index,
-                                       slice_dim_index, self.show_map_popup, self)
+                                       slice_dim_index, self.slice_dimension_name, slice_spinner, self.show_map_popup, self)
         self.backend.set_data(sliced_data)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)

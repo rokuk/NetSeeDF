@@ -54,7 +54,6 @@ def setup_folium():
     ]
     folium.Map.default_js = folium.folium._default_js
     folium.Map.default_css = folium.folium._default_css
-    print(folium.folium._default_js)
 
     folium.elements.JavascriptLink = JavascriptLink
     folium.elements.CssLink = CssLink

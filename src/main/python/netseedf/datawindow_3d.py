@@ -272,7 +272,7 @@ class DataWindow3d(QWidget):
         self.update_table()
 
     def show_context_menu(self, point):
-        utils.show_context_menu_3d(self, point, self, self.tdata, self.tunits, self.calendar, self.variable_name, self.file_path, self.x_dim_index, self.y_dim_index, self.slice_dim_index)
+        utils.show_context_menu_3d(self, point, self, self.tdata, self.tunits, self.calendar, self.slice_dimension_name, self.variable_name, self.file_path, self.x_dim_index, self.y_dim_index, self.slice_dim_index)
 
     def export_3d(self):
         suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())

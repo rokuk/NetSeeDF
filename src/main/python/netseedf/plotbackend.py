@@ -14,7 +14,7 @@ def find_closest_grid_point(lat, lon, x, y):
 
 class Backend3d(QObject):
     def __init__(self, file_path, variable_name, xdata, ydata, tdata, tunits, calendar, x_dim_index, y_dim_index, slice_dim_index,
-                 show_map_popup, window_instance):
+                 slice_dimension_name, slice_spinner, show_map_popup, window_instance):
         super().__init__()
         self.file_path = file_path
         self.variable_name = variable_name
@@ -26,6 +26,8 @@ class Backend3d(QObject):
         self.x_dim_index = x_dim_index
         self.y_dim_index = y_dim_index
         self.slice_dim_index = slice_dim_index
+        self.slice_dimension_name = slice_dimension_name
+        self.slice_spinner = slice_spinner
         self.show_map_popup = show_map_popup
         self.window_instance = window_instance
         self.last_gridi = 0
@@ -43,10 +45,6 @@ class Backend3d(QObject):
             gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
             self.last_gridi, self.last_gridj = gridi, gridj
             self.show_map_popup(gridlat, gridlon, gridval)  # show popup with lat, lon and value of the closest grid point
-
-    @Slot()
-    def on_overlay_loaded(self):
-        print("loaded")
 
     @Slot()
     def on_export_requested(self):
@@ -74,7 +72,8 @@ class Backend3d(QObject):
         else:
             datetimes = self.tdata
 
-        show_dialog_and_save(self.window_instance, np.array([datetimes, timeseries]).T, self.variable_name, False)
+        suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())
+        show_dialog_and_save(self.window_instance, np.array([datetimes, timeseries]).T, suggested_filename, False)
 
         self.window_instance.close_map_popups()
 

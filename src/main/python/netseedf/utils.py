@@ -108,7 +108,7 @@ def show_context_menu(self, point):
             QApplication.clipboard().setText(str(value))
 
 
-def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, variable_name, file_path, x_dim_index, y_dim_index, slice_dim_index):
+def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, slice_dimension_name, variable_name, file_path, x_dim_index, y_dim_index, slice_dim_index):
     index = self.data_table.indexAt(point)
     if index.isValid():
         menu = QMenu()
@@ -139,13 +139,13 @@ def show_context_menu_3d(self, point, window_instance, tdata, tunits, calendar, 
                             pass
 
             if tunits is not None and calendar is not None:
-                datetimes = num2date(self.tdata, self.tunits, self.calendar)
+                datetimes = num2date(tdata, tunits, calendar)
             else:
                 datetimes = tdata
 
-            suggested_filename = self.variable_name + "_" + self.slice_dimension_name + str(self.slice_spinner.value())
+            suggested_filename = variable_name + "_" + slice_dimension_name + str(self.slice_spinner.value())
 
-            show_dialog_and_save(window_instance, [datetimes, timeseries], suggested_filename, window_instance.time_name, window_instance.variable_name, False)
+            show_dialog_and_save(window_instance, np.array([datetimes, timeseries]).T, suggested_filename, False)
 
 
 def show_dialog_and_save(self, selected_data, suggested_filename, use_last_dir=True):
