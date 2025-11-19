@@ -96,11 +96,23 @@ class PlotWindow3d(QWidget):
         self.xdata = ncfile.variables[variable_data.dimensions[x_dim_index]][:]
         self.ydata = ncfile.variables[variable_data.dimensions[y_dim_index]][:]
         self.tdata = ncfile.variables[variable_data.dimensions[slice_dim_index]][:]
+        self.xdata = ((self.xdata + 180) % 360) - 180
+
+        # ensure longitudes are increasing by reordering if necessary
+        order = np.argsort(self.xdata)
+        if not np.all(order == np.arange(self.xdata.size)):
+            # store reorder indices so we can apply the same to data later
+            self._x_reorder = order
+            self.xdata = self.xdata[self._x_reorder]
+        else:
+            self._x_reorder = None
+
         self.xboundaries, self.yboundaries = grid_boundaries_from_centers(self.xdata, self.ydata)
+
         self.slice_dimension_name = variable_data.dimensions[slice_dim_index]
 
         try:
-            self.calendar = ncfile.variables[variable_data.dimensions[slice_dim_index]].calendar
+            self.calendar = ncfile.variables[self.slice_dimension_name].calendar
         except Exception:
             pass
 
@@ -131,11 +143,10 @@ class PlotWindow3d(QWidget):
         slice_selector_layout = QHBoxLayout()
         slice_selector_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         slice_selector_widget.setLayout(slice_selector_layout)
-        slice_selector_layout.addWidget(QLabel(variable_data.dimensions[slice_dim_index] + ": "))
+        slice_selector_layout.addWidget(QLabel(self.slice_dimension_name + ": "))
         slice_spinner = QSpinBox()
         slice_spinner.setMinimum(0)
-        slice_spinner.setMaximum(variable_data.shape[
-                                     slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
+        slice_spinner.setMaximum(variable_data.shape[slice_dim_index] - 1)  # set max index to size of the axis corresponding to the slicing variable
         slice_spinner.setValue(0)
         slice_spinner.valueChanged.connect(self.update_map)
         self.slice_spinner = slice_spinner
@@ -143,8 +154,7 @@ class PlotWindow3d(QWidget):
         slice_selector_layout.addWidget(QLabel(" of " + str(variable_data.shape[slice_dim_index] - 1)))
 
         try:
-            units = ncfile.variables[
-                variable_data.dimensions[slice_dim_index]].units  # get units of the slicing variable
+            units = ncfile.variables[self.slice_dimension_name].units  # get units of the slicing variable
             self.tunits = units
         except Exception:  # in case the units are not included in the file
             pass
@@ -220,14 +230,25 @@ class PlotWindow3d(QWidget):
         # intial data load
         if self.slice_dim_index == 0:  # select the slice and read it into memory from disk
             sliced_data = variable_data[0, :, :]
+            self.x_dim_index = x_dim_index - 1
         elif self.slice_dim_index == 1:
             sliced_data = variable_data[:, 0, :]
+            if x_dim_index == 0:
+                self.x_dim_index = 0
+            else:
+                self.x_dim_index = 1
         else:
             sliced_data = variable_data[:, :, 0]
+            self.x_dim_index = x_dim_index
 
         ncfile.close()
 
         sliced_data = ma.masked_equal(sliced_data, self.fill_value)
+
+        # apply x reorder to sliced_data so data columns match reordered self.xdata
+        if getattr(self, "_x_reorder", None) is not None:
+            # numpy.take handles the reorder along the correct axis of the sliced array
+            sliced_data = np.take(sliced_data, self._x_reorder, axis=self.x_dim_index)
 
         # setup channel for communication between map js and python
         self.channel = QWebChannel()
