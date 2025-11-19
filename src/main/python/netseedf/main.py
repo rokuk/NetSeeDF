@@ -11,7 +11,12 @@ def excepthook(type, value, tback):
 
 
 sys.excepthook = excepthook
+
 import os
+
+if sys.platform == "linux":
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]="--disable-gpu"
+
 from pathlib import Path
 from netCDF4 import Dataset
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainTextEdit, QHBoxLayout, \
