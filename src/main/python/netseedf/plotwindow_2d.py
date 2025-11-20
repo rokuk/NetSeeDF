@@ -2,16 +2,15 @@ import base64
 import io
 
 import offline # must be before importing folium, DO NOT REMOVE
-#import folium  # must be after importing offline folium
 import numpy as np
 import numpy.ma as ma
 from PySide6.QtGui import QPixmap, QImage
 from PySide6.QtWebChannel import QWebChannel
 from PySide6.QtWebEngineCore import QWebEngineUrlScheme
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSpinBox, QSizePolicy, QCheckBox, QMessageBox
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QHBoxLayout, QLabel, QSizePolicy
 from matplotlib import pyplot as plt
-from netCDF4 import Dataset, num2date
+from netCDF4 import Dataset
 from cartopy import crs as ccrs
 import matplotlib.style as mplstyle
 from matplotlib import use as mpluse
@@ -20,8 +19,6 @@ from plotbackend import Backend2d, WebChannelJS
 
 mplstyle.use('fast')
 mpluse("agg")
-
-import utils
 
 
 class PlotWindow2d(QWidget):

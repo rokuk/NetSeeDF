@@ -3,8 +3,7 @@ import io
 
 import matplotlib as mpl
 from matplotlib.colors import Normalize
-import offline # must be before importing folium, DO NOT REMOVE
-#import folium  # must be after importing offline folium
+import offline
 import numpy as np
 import numpy.ma as ma
 from PySide6.QtCore import Qt
