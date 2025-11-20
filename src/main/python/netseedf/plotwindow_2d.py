@@ -28,6 +28,10 @@ class PlotWindow2d(QWidget):
     def __init__(self, file_name, variable_name, file_path, appcontext):
         super().__init__()
 
+        offline.set_appcontext(appcontext)
+        offline.setup_folium()
+        import folium
+
         self.setWindowTitle(variable_name + " - NetSeeDF")
         self.setMinimumSize(650, 600)
         self.file_path = file_path
