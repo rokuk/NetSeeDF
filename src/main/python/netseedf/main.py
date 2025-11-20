@@ -160,14 +160,23 @@ class MainWindow(QMainWindow):
 
         # Read the data shape
         ncfile = Dataset(file_path, "r")
-        num_dimensions = len(ncfile.variables[variable_name].shape)
+        variable_shape = ncfile.variables[variable_name].shape
+        num_dimensions = len(variable_shape)
         ncfile.close()
 
-        return num_dimensions, file_name, variable_name, file_path
+        # Check if any dimensions are 0 or 1 long, so they can be dropped when plotting on a map
+        drop_dim_indices = []
+        if num_dimensions > 1:
+            for i in range(num_dimensions):
+                dim_length = variable_shape[i]
+                if dim_length == 1 or dim_length == 0:
+                    drop_dim_indices.append(i)
+
+        return num_dimensions, file_name, variable_name, file_path, drop_dim_indices
 
     # Displays a table of the data for the selected variable in a new window
     def show_data(self):
-        num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
+        num_dimensions, file_name, variable_name, file_path, drop_dim_indices = self.get_info_about_selected()
 
         if num_dimensions == 1:
             dataw = DataWindow1d(file_name, variable_name, file_path)
@@ -187,12 +196,12 @@ class MainWindow(QMainWindow):
 
     # Plot the data for the selected variable in a new window
     def show_map(self):
-        num_dimensions, file_name, variable_name, file_path = self.get_info_about_selected()
+        num_dimensions, file_name, variable_name, file_path, drop_dim_indices = self.get_info_about_selected()
 
         if num_dimensions == 3:
-            plotw = PlotWindow3d(file_name, variable_name, file_path, self.appcontext)
+            plotw = PlotWindow3d(file_name, variable_name, file_path, drop_dim_indices, self.appcontext)
         elif num_dimensions == 2:
-            plotw = PlotWindow2d(file_name, variable_name, file_path, self.appcontext)
+            plotw = PlotWindow2d(file_name, variable_name, file_path, drop_dim_indices, self.appcontext)
         else:
             dlg = QMessageBox(self)
             dlg.setWindowTitle("NetSeeDF message")

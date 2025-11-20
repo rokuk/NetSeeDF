@@ -22,7 +22,7 @@ mpluse("agg")
 
 
 class PlotWindow2d(QWidget):
-    def __init__(self, file_name, variable_name, file_path, appcontext):
+    def __init__(self, file_name, variable_name, file_path, drop_dim_indices, appcontext):
         super().__init__()
 
         offline.set_appcontext(appcontext)
