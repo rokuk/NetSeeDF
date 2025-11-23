@@ -4,6 +4,8 @@ import traceback
 from fbs_runtime.application_context import cached_property
 from fbs_runtime.application_context.PySide6 import ApplicationContext
 
+import datautils
+
 
 def excepthook(type, value, tback):
     traceback.print_exception(type, value, tback)
@@ -15,7 +17,7 @@ sys.excepthook = excepthook
 import os
 
 if sys.platform == "linux":
-    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]="--disable-gpu"
+    os.environ["QTWEBENGINE_CHROMIUM_FLAGS"]="--disable-gpu" # plot window does not run on linux otherwise
 
 from pathlib import Path
 from netCDF4 import Dataset
@@ -23,11 +25,8 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QPlainText
     QPushButton, QWidget, QTreeWidget, QTreeWidgetItem, QFileDialog, QGridLayout
 from PySide6.QtCore import Qt
 
-from datawindow_1d import DataWindow1d
-from datawindow_2d import DataWindow2d
-from datawindow_3d import DataWindow3d
-from plotwindow_2d import PlotWindow2d
-from plotwindow_3d import PlotWindow3d
+from datawindow import DataWindow
+from plotwindow import PlotWindow
 
 
 class MainWindow(QMainWindow):
@@ -96,8 +95,7 @@ class MainWindow(QMainWindow):
     # Called when 'Open NetCDF file' button is clicked
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open NetCDF file",
+            self,"Open NetCDF file",
             str(Path.home()),
             "NetCDF files (*.nc)"
         )
@@ -157,58 +155,30 @@ class MainWindow(QMainWindow):
         variable_name = current_item.data(0, Qt.ItemDataRole.DisplayRole)
         file_name = current_item.parent().data(0, Qt.ItemDataRole.DisplayRole)
         file_path = self.file_paths_dict[file_name]
+        return datautils.identify_dims(file_path, variable_name)
 
-        # Read the data shape
-        ncfile = Dataset(file_path, "r")
-        variable_shape = ncfile.variables[variable_name].shape
-        num_dimensions = len(variable_shape)
-        ncfile.close()
-
-        # Check if any dimensions are 0 or 1 long, so they can be dropped when plotting on a map
-        drop_dim_indices = []
-        if num_dimensions > 1:
-            for i in range(num_dimensions):
-                dim_length = variable_shape[i]
-                if dim_length == 1 or dim_length == 0:
-                    drop_dim_indices.append(i)
-
-        return num_dimensions, file_name, variable_name, file_path, drop_dim_indices
 
     # Displays a table of the data for the selected variable in a new window
     def show_data(self):
-        num_dimensions, file_name, variable_name, file_path, drop_dim_indices = self.get_info_about_selected()
+        var_props = self.get_info_about_selected()
 
-        if num_dimensions == 1:
-            dataw = DataWindow1d(file_name, variable_name, file_path)
-        elif num_dimensions == 2:
-            dataw = DataWindow2d(file_name, variable_name, file_path)
-        elif num_dimensions == 3:
-            dataw = DataWindow3d(file_name, variable_name, file_path)
-        else:
-            dlg = QMessageBox(self)
-            dlg.setWindowTitle("NetSeeDF message")
-            dlg.setText("This shape of data is currently not supported!")
-            dlg.exec()
-            return
+        dataw = DataWindow(var_props)
 
         dataw.show()
         self.open_windows.append(dataw)
 
     # Plot the data for the selected variable in a new window
     def show_map(self):
-        num_dimensions, file_name, variable_name, file_path, drop_dim_indices = self.get_info_about_selected()
+        var_props = self.get_info_about_selected()
 
-        if num_dimensions == 3:
-            plotw = PlotWindow3d(file_name, variable_name, file_path, drop_dim_indices, self.appcontext)
-        elif num_dimensions == 2:
-            plotw = PlotWindow2d(file_name, variable_name, file_path, drop_dim_indices, self.appcontext)
-        else:
+        if var_props["x_dim"] == "x" and var_props["y_dim"] == "y":
             dlg = QMessageBox(self)
             dlg.setWindowTitle("NetSeeDF message")
-            dlg.setText("This shape of data is currently not supported!")
+            dlg.setText("NetSeeDF does not support this type of coordinate system yet!")
             dlg.exec()
             return
 
+        plotw = PlotWindow(self.appcontext, var_props)
         plotw.show()
         self.open_windows.append(plotw)
 
@@ -239,15 +209,20 @@ class MainWindow(QMainWindow):
 
         else:  # variable is selected
             parent_name = parent.data(0, Qt.ItemDataRole.DisplayRole)  # get the name of the file containing the selected variable
+
             ncfile = Dataset(self.file_paths_dict[parent_name], "r")
-            self.text_area.setPlainText(str(ncfile.variables[selection_name]))
-            if len(ncfile.variables[selection_name].shape) == 3 or len(
-                    ncfile.variables[selection_name].shape) == 2:  # only enable plot button for 3-dimensional variables
-                self.plot_button.setEnabled(True)
-            else:
-                self.plot_button.setEnabled(False)
-            self.data_button.setEnabled(True)
+            var = ncfile.variables[selection_name]
+            dims = list(var.dimensions)
+            shapes = list(var.shape)
+
+            self.text_area.setPlainText(str(var)) # set text about variable
+
             ncfile.close()
+
+            var_props = datautils.identify_dims_from_vardata(dims, shapes)
+
+            self.plot_button.setEnabled(var_props["can_plot"]) # only enable plot button, if we have identified x and y dimensions
+            self.data_button.setEnabled(bool(len(var_props["all_dims"]) > 0))
 
 
 class AppContext(ApplicationContext):

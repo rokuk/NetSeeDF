@@ -81,22 +81,6 @@ def grid_boundaries_from_centers(x_centers, y_centers):
     return x_bounds, y_bounds
 
 
-def slice_data(file_path, variable_name, slice_dim_index, slice_index):
-    ncfile = Dataset(file_path, "r")
-    variable_data = ncfile.variables[variable_name]
-
-    if slice_dim_index == 0:  # select the slice and read it into memory from disk
-        sliced_data = variable_data[slice_index, :, :]
-    elif slice_dim_index == 1:
-        sliced_data = variable_data[:, slice_index, :]
-    else:
-        sliced_data = variable_data[:, :, slice_index]
-
-    ncfile.close()
-
-    return sliced_data
-
-
 def show_context_menu(self, point):
     index = self.data_table.indexAt(point)
     if index.isValid():
