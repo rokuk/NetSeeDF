@@ -19,7 +19,7 @@ from matplotlib import pyplot as plt
 mplstyle.use('fast')
 mpluse("agg")
 
-from plotutils import WebChannelJS, Backend3d
+from plotutils import WebChannelJS, PlotBackend
 import datautils
 import utils
 import offline
@@ -150,11 +150,11 @@ class PlotWindow(QWidget):
         autoscale_widget.setLayout(autoscale_layout)
 
         # setup channel for communication between map js and python
-        #self.channel = QWebChannel()
-        #self.backend = Backend3d(file_path, variable_name, self.xdata, self.ydata, self.tdata, self.tunits, self.calendar, x_dim_index, y_dim_index, slice_dim_index, self.slice_dimension_name, slice_spinner, self.show_map_popup, self)
-        #self.backend.set_data(initial_plotdata)
-        #self.channel.registerObject('backend', self.backend)
-        #self.view.page().setWebChannel(self.channel)
+        self.channel = QWebChannel()
+        self.backend = PlotBackend(var_props, xdata, ydata, variable_units, slicedata, slicetunits, slicecalendar, self.show_map_popup, self)
+        self.backend.set_data(initial_plotdata)
+        self.channel.registerObject('backend', self.backend)
+        self.view.page().setWebChannel(self.channel)
 
         # extent of map
         xmin, ymin, xmax, ymax = np.min(xboundaries), np.min(yboundaries), np.max(xboundaries), np.max(yboundaries)
@@ -279,12 +279,12 @@ class PlotWindow(QWidget):
             self.max_spinner.setSingleStep(step)
             self.min_spinner.setSingleStep(step)
 
-            if steporder < 0:
-                scale_max_value = rounded_max_value
-                scale_min_value = rounded_min_value
-            else:
-                scale_max_value = max_value
-                scale_min_value = min_value
+            #if steporder < 0:
+            #    scale_max_value = rounded_max_value
+            #    scale_min_value = rounded_min_value
+            #else:
+            scale_max_value = max_value
+            scale_min_value = min_value
 
             self.max_spinner.setValue(scale_max_value)
             self.min_spinner.setValue(scale_min_value)

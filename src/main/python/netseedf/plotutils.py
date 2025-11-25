@@ -12,22 +12,17 @@ def find_closest_grid_point(lat, lon, x, y):
     j = np.abs(y - lat).argmin()
     return i, j
 
-class Backend3d(QObject):
-    def __init__(self, file_path, variable_name, xdata, ydata, tdata, tunits, calendar, x_dim_index, y_dim_index, slice_dim_index,
-                 slice_dimension_name, slice_spinner, show_map_popup, window_instance):
+class PlotBackend(QObject):
+    def __init__(self, var_props, xdata, ydata, variable_units, tdata, tunits, calendar, show_map_popup, window_instance):
         super().__init__()
-        self.file_path = file_path
-        self.variable_name = variable_name
+        self.file_path = var_props["file_path"]
+        self.variable_name = var_props["variable_name"]
         self.xdata = xdata
         self.ydata = ydata
+        self.variable_units = variable_units
         self.tdata = tdata
         self.tunits = tunits
         self.calendar = calendar
-        self.x_dim_index = x_dim_index
-        self.y_dim_index = y_dim_index
-        self.slice_dim_index = slice_dim_index
-        self.slice_dimension_name = slice_dimension_name
-        self.slice_spinner = slice_spinner
         self.show_map_popup = show_map_popup
         self.window_instance = window_instance
         self.last_gridi = 0
@@ -44,7 +39,18 @@ class Backend3d(QObject):
             gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
             gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
             self.last_gridi, self.last_gridj = gridi, gridj
-            self.show_map_popup(gridlat, gridlon, gridval)  # show popup with lat, lon and value of the closest grid point
+            if self.variable_units is not None:
+                if self.variable_units == "K":
+                    if self.window_instance.temp_convert_checkbox.isChecked():
+                        try:
+                            gridval = gridval - 273.15
+                        except Exception:
+                            pass
+
+            value_string = str(gridval)
+            if self.variable_units is not None:
+                value_string += " " + self.variable_units
+            self.show_map_popup(gridlat, gridlon, value_string)  # show popup with lat, lon and value of the closest grid point
 
     @Slot()
     def on_export_requested(self):

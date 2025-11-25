@@ -14,7 +14,10 @@ def round_max_value(x):
         return 0.0
     order = getorder(x)
     scale = 10 ** order
-    rounded = ceil(abs(x) / scale) * scale
+    if x > 0:
+        rounded = ceil(abs(x) / scale) * scale
+    else:
+        rounded = floor(abs(x) / scale) * scale
     return copysign(rounded, x)
 
 
@@ -23,7 +26,10 @@ def round_min_value(x):
         return 0.0
     order = getorder(x)
     scale = 10 ** order
-    rounded = floor(abs(x) / scale) * scale
+    if x < 0:
+        rounded = floor(abs(x) / scale) * scale
+    else:
+        rounded = ceil(abs(x) / scale) * scale
     return copysign(rounded, x)
 
 
