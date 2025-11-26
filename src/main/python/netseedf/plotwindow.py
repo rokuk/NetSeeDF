@@ -33,7 +33,7 @@ class PlotWindow(QWidget):
         offline.setup_folium()
         import folium
 
-        slicedata, slicecalendar, slicetunits, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, initial_plotdata, xdata, ydata, xdataunit, ydataunit = datautils.get_initial_data(var_props)
+        slicedata, slicecalendar, slicetunits, timesliceindex, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, initial_plotdata, xdata, ydata, xdataunit, ydataunit = datautils.get_initial_data(var_props)
 
         self.state = "init"
         self.autoscale = True
@@ -151,7 +151,7 @@ class PlotWindow(QWidget):
 
         # setup channel for communication between map js and python
         self.channel = QWebChannel()
-        self.backend = PlotBackend(var_props, xdata, ydata, variable_units, slicedata, slicetunits, slicecalendar, self.show_map_popup, self)
+        self.backend = PlotBackend(var_props, xdata, ydata, variable_units, slicedata[timesliceindex], slicetunits[timesliceindex], slicecalendar[timesliceindex], self.show_map_popup, self)
         self.backend.set_data(initial_plotdata)
         self.channel.registerObject('backend', self.backend)
         self.view.page().setWebChannel(self.channel)
@@ -309,7 +309,7 @@ class PlotWindow(QWidget):
 
         ax.pcolormesh(self.xboundaries, self.yboundaries, image_data, cmap=cmap, transform=source_crs,
                       vmin=scale_min_value, vmax=scale_max_value, shading="flat")
-        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=300)
+        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=500)
 
         fig, ax = plt.subplots(figsize=(1.1, 3.5), layout="constrained")
 

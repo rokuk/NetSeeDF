@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
         text_area.setPlaceholderText("Open a file to view its contents")
         text_area.setReadOnly(True)
         text_area.viewport().setCursor(Qt.CursorShape.ArrowCursor)
-        text_area.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        text_area.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.text_area = text_area
 
         main_widget = QWidget()

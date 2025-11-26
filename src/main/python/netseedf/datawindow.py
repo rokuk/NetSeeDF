@@ -1,8 +1,9 @@
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QCheckBox, QTableWidget, QVBoxLayout, QWidget, QLabel, \
-    QHBoxLayout, QSpinBox, QPushButton, QTableView, QMessageBox
+    QHBoxLayout, QSpinBox, QPushButton, QTableView, QMessageBox, QMenu, QApplication
 from netCDF4 import Dataset, num2date
 import numpy as np
 
@@ -19,11 +20,15 @@ class DataWindow(QWidget):
         self.setWindowTitle(var_props["file_path"] + " - NetSeeDF")
         self.setMinimumSize(700, 600)
 
-        slicedata, slicecalendar, slicetunits, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, initial_data, xdata, ydata, xdataunit, ydataunit = datautils.get_initial_data(var_props)
+        slicedata, slicecalendar, slicetunits, timesliceindex, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, initial_data, xdata, ydata, xdataunit, ydataunit = datautils.get_initial_data(var_props)
 
         self.var_props = var_props
         self.variable_units = variable_units
         self.variable_calendar = variable_calendar
+        self.slicedata = slicedata
+        self.slicecalendar = slicecalendar
+        self.slicetunits = slicetunits
+        self.timesliceindex = timesliceindex
         self.last_directory = str(Path.home())
 
         if initial_data.shape == ():
@@ -228,8 +233,57 @@ class DataWindow(QWidget):
     def on_convert_temp(self):
         self.update_table()
 
+    def show_context_menu_noslice(self, point):
+        index = self.data_table.indexAt(point)
+        if index.isValid():
+            menu = QMenu()
+            copy_action = menu.addAction("Copy")
+            action = menu.exec(QCursor.pos())
+            if action == copy_action:
+                value = index.data()
+                QApplication.clipboard().setText(str(value))
+
+    def show_context_menu_slice(self, point):
+        index = self.data_table.indexAt(point)
+        if index.isValid():
+            menu = QMenu()
+            copy_action = menu.addAction("Copy")
+            export_action = menu.addAction("Export timeseries")
+            action = menu.exec(QCursor.pos())
+            if action == copy_action:
+                value = index.data()
+                QApplication.clipboard().setText(str(value))
+            elif action == export_action:
+                timeseries = datautils.slice_timeseries(self.var_props, self.get_selected_indices(), index.column(), index.row(), self.var_props[
+                    "t_dim"])  # we assume that data should be sliced along the first identified time dimension
+
+                if self.variable_units is not None:
+                    if self.variable_units == "K":
+                        if self.temp_convert_checkbox.isChecked():
+                            try:
+                                timeseries = timeseries - 273.15
+                            except Exception:
+                                pass
+
+                tunits = self.slicetunits[self.timesliceindex]
+                tcalendar = self.slicecalendar[self.timesliceindex]
+                tdata = self.slicedata[self.timesliceindex]
+
+                if tunits is not None and tcalendar is not None:
+                    datetimes = num2date(tdata, tunits, tcalendar)
+                else:
+                    datetimes = tdata
+
+                suggested_filename = self.var_props["variable_name"] + "_" + self.var_props["t_dim"]
+
+                utils.show_dialog_and_save(self, np.array([datetimes, timeseries]).T, suggested_filename,
+                                           False)  # TODO: last dir stuff
+
     def show_context_menu(self, point):
-        utils.show_context_menu_3d(self, point, self, self.tdata, self.tunits, self.calendar, self.slice_dimension_name, self.variable_name, self.file_path, self.x_dim_index, self.y_dim_index, self.slice_dim_index)
+        if self.var_props["can_slice"]:
+            self.show_context_menu_slice(point)
+        else:
+            self.show_context_menu_noslice(point)
 
     def export_3d(self):
         suggested_filename = self.var_props["variable_name"]

@@ -1,5 +1,8 @@
-from netCDF4 import Dataset
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import QMenu, QApplication
+from netCDF4 import Dataset, num2date
 import numpy.ma as ma
+import numpy as np
 
 import utils
 
@@ -44,14 +47,17 @@ def identify_dims_from_vardata(dims, shapes):
     # try to identify coordinates by name
     x_candidates = [d for d in candidate_dims if d in LON_NAMES]
     y_candidates = [d for d in candidate_dims if d in LAT_NAMES]
+    t_candidates = [d for d in candidate_dims if d in TIME_NAMES]
     x_dim = x_candidates[0] if x_candidates else None
     y_dim = y_candidates[0] if y_candidates else None
+    t_dim = t_candidates[0] if t_candidates else None
 
     sliceable_dims = [d for d in dims if d not in (drop_dims + [x_dim, y_dim])]
 
     return {
         "x_dim": x_dim,
         "y_dim": y_dim,
+        "t_dim": t_dim,
         "drop_dims": drop_dims,
         "sliceable_dims": sliceable_dims,
         "all_dims": dims,
@@ -75,6 +81,32 @@ def identify_dims(file_path, variable_name):
     ncfile.close()
 
     return var_props
+
+def slice_timeseries(var_props, slice_indices, x_index, y_index, chosen_dim_name):
+    ncfile = Dataset(var_props["file_path"], "r")
+    vardata = ncfile.variables[var_props["variable_name"]]
+
+    # build slices covering all dims in var order
+    slices = []
+    for i in range(len(var_props["all_dims"])):  # I am so sorry to anyone reading this
+        d = var_props["all_dims"][i]
+        if d not in var_props["drop_dims"]:
+            if d == var_props["x_dim"]:
+                slices.append(x_index)
+            elif d == var_props["y_dim"]:
+                slices.append(y_index)
+            elif d == chosen_dim_name:
+                slices.append(slice(None))
+            else:
+                slices.append(slice_indices[i])
+        else:
+            slices.append(0)
+
+    timeseries = vardata[tuple(slices)]
+
+    ncfile.close()
+
+    return timeseries
 
 def slice_data(var_props, slice_indices, vardata):
     if vardata.shape == (1,):
@@ -126,9 +158,11 @@ def get_initial_data(var_props):
     slicedata = []
     slicecalendar = []
     slicetunits = []
+    timesliceindex = 0
 
     if var_props["can_slice"]:
-        for slice_dim in var_props["sliceable_dims"]:
+        for i in range(len(var_props["sliceable_dims"])):
+            slice_dim = var_props["sliceable_dims"][i]
             slice_variable = ncfile.variables[slice_dim]
 
             slicedata.append(slice_variable[:])
@@ -146,6 +180,9 @@ def get_initial_data(var_props):
             except Exception:
                 pass
             slicetunits.append(tunits)
+
+            if slice_dim == var_props["t_dim"]:
+                timesliceindex = i
 
     variable_units = None
     try:
@@ -174,7 +211,7 @@ def get_initial_data(var_props):
 
     ncfile.close()
 
-    return slicedata, slicecalendar, slicetunits, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, sliced_data, xdata, ydata, xdataunit, ydataunit
+    return slicedata, slicecalendar, slicetunits, timesliceindex, variable_units, variable_calendar, variable_description, xboundaries, yboundaries, sliced_data, xdata, ydata, xdataunit, ydataunit
 
 def get_sliced_data(var_props, slice_indices):
     ncfile = Dataset(var_props["file_path"], "r")
