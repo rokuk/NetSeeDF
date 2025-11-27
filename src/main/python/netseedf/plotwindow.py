@@ -119,25 +119,17 @@ class PlotWindow(QWidget):
 
         cbar_container = QWidget()
         cbar_container_layout = QVBoxLayout()
-        max_container = QWidget()
-        min_container = QWidget()
-        max_container_layout = QHBoxLayout()
-        min_container_layout = QHBoxLayout()
+        cbar_container_layout.setAlignment(Qt.AlignmentFlag.AlignBottom)
         max_spinner = QDoubleSpinBox()
         min_spinner = QDoubleSpinBox()
         max_spinner.setEnabled(False)
         min_spinner.setEnabled(False)
         max_spinner.setRange(-1e300, 1e300)
         min_spinner.setRange(-1e300, 1e300)
+        max_spinner.setFixedWidth(125)
+        min_spinner.setFixedWidth(125)
         self.max_spinner = max_spinner
         self.min_spinner = min_spinner
-
-        max_container_layout.addWidget(QLabel("Max: "))
-        max_container_layout.addWidget(self.max_spinner)
-        min_container_layout.addWidget(QLabel("Min: "))
-        min_container_layout.addWidget(self.min_spinner)
-        max_container.setLayout(max_container_layout)
-        min_container.setLayout(min_container_layout)
 
         autoscale_widget = QWidget()
         autoscale_layout = QHBoxLayout()
@@ -190,10 +182,11 @@ class PlotWindow(QWidget):
         min_spinner.valueChanged.connect(self.scale_changed)
         autoscale_checkbox.checkStateChanged.connect(self.on_autoscale_changed)
 
+        cbar_container_layout.addStretch()
         cbar_container_layout.addWidget(autoscale_widget)
-        cbar_container_layout.addWidget(max_container)
+        cbar_container_layout.addWidget(max_spinner)
         cbar_container_layout.addWidget(cbar)
-        cbar_container_layout.addWidget(min_container)
+        cbar_container_layout.addWidget(min_spinner)
         cbar_container.setLayout(cbar_container_layout)
 
         maplayout.addWidget(cbar_container)
