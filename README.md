@@ -2,7 +2,7 @@
 
 NetSeeDF is a simple, lightweight tool for exploring and visualizing data in NetCDF files.
 
-Inspired by [Panoply](https://www.giss.nasa.gov/tools/panoply/), NetSeeDF is designed to be simpler and more limited tool that does **not** require a Java installation. Designed with students and researchers in mind, it lets you quickly explore available variables, their shapes, visualize grid point values on a map, and export data for a single point.
+Inspired by [Panoply](https://www.giss.nasa.gov/tools/panoply/), NetSeeDF is designed to be simpler and more limited tool that does **not** require a Java installation. Designed with students and researchers in mind, it lets you quickly explore available variables, their shapes, and visualize grid point values on a map.
 
 NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 
@@ -17,6 +17,7 @@ NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 - List variables in a NetCDF file. 
 - View variable values in a table (supports 1D, 2D, and 3D variables)
 - Visualize gridded variable values on an interactive map (supports slicing 3D variables, e.g. in time)
+- Export timeseries for a selected grid point, export tabular data
 
 ## Limitations
 - The software is still in development and currently supports only a limited number of NetCDF file structures.
