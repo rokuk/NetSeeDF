@@ -6,12 +6,12 @@ Inspired by [Panoply](https://www.giss.nasa.gov/tools/panoply/), NetSeeDF is des
 
 NetSeeDf is developed by Rok Kuk [rokuk.org](https://rokuk.org)
 
-![Animation](https://storage.rokuk.org/netseedf/netseedf1.gif)
+![Animation](https://storage.rokuk.org/netseedf/foto/netseedf1.gif)
 
-| ![Data display](https://storage.rokuk.org/netseedf/netseedf2.png) |![Map](https://storage.rokuk.org/netseedf/netseedf3.png)|
-|:-----------------------------------------------------------------:|:------------------------------------------------------:|
+| ![Data display](https://storage.rokuk.org/netseedf/foto/netseedf2.png) |![Map](https://storage.rokuk.org/netseedf/foto/netseedf3.png)|
+|:----------------------------------------------------------------------:|:------------------------------------------------------:|
 
-![Main window](https://storage.rokuk.org/netseedf/netseedf4.png)
+![Main window](https://storage.rokuk.org/netseedf/foto/netseedf4.png)
 
 ## Features
 - List variables in a NetCDF file. 
