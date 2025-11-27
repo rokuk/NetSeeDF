@@ -2,6 +2,6 @@
     "app_name": "NetSeeDF",
     "author": "Rok Kuk",
     "main_module": "src/main/python/netseedf/main.py",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "exclude_modules": ["PySide6.QtMultimedia", "PySide6.QtCharts", "PySide6.QtPdf", "Pyside6.QtGraphs"]
 }

@@ -117,7 +117,7 @@ class DataWindow(QWidget):
         self.labels_checkbox = labels_checkbox
         if xdata is not None and ydata is not None:
             labels_selector_layout.addWidget(labels_checkbox)
-            labels_selector_layout.addWidget(QLabel("show coordinates on axis"))
+            labels_selector_layout.addWidget(QLabel("show coordinates on axes"))
         else:
             if variable_calendar is not None:
                 _ = num2date(initial_data, variable_units, variable_calendar)

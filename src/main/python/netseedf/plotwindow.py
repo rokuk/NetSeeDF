@@ -143,6 +143,9 @@ class PlotWindow(QWidget):
 
         # setup channel for communication between map js and python
         self.channel = QWebChannel()
+        print(slicedata[timesliceindex])
+        print(timesliceindex)
+        print(slicetunits)
         self.backend = PlotBackend(var_props, xdata, ydata, variable_units, slicedata[timesliceindex], slicetunits[timesliceindex], slicecalendar[timesliceindex], self.show_map_popup, self)
         self.backend.set_data(initial_plotdata)
         self.channel.registerObject('backend', self.backend)
@@ -155,6 +158,8 @@ class PlotWindow(QWidget):
         self.xmin, self.xmax, self.ymin, self.ymax = xmin, xmax, ymin, ymax
 
         image, colorbar = self.getb64image(initial_plotdata)
+
+        print(initial_plotdata)
 
         # map raster layer
         folium.raster_layers.ImageOverlay(
