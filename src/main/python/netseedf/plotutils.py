@@ -39,17 +39,25 @@ class PlotBackend(QObject):
             gridi, gridj = find_closest_grid_point(lat, lon, self.xdata, self.ydata)
             gridlat, gridlon, gridval = self.ydata[gridj], self.xdata[gridi], self.data[gridj, gridi]
             self.last_gridi, self.last_gridj = gridi, gridj
+
+            is_celsius = False
             if self.variable_units is not None:
                 if self.variable_units == "K":
                     if self.window_instance.temp_convert_checkbox.isChecked():
                         try:
                             gridval = gridval - 273.15
+                            is_celsius = True
                         except Exception:
                             pass
 
             value_string = str(gridval)
             if gridval != np.nan and self.variable_units is not None:
-                value_string += " " + self.variable_units
+                if is_celsius:
+                    value_string += " °C"
+                elif self.variable_units == "1":
+                    pass
+                else:
+                    value_string += " " + self.variable_units
             self.show_map_popup(gridlat, gridlon, value_string)  # show popup with lat, lon and value of the closest grid point
 
     @Slot()

@@ -18,9 +18,9 @@ def get_max_width(data_table, labels):
 class TableModel(QAbstractTableModel):
     def __init__(self, current_data, xlabels, ylabels):
         super().__init__()
-        self.current_data = current_data
+        self.current_data = current_data[::-1]
         self.xlabels = xlabels
-        self.ylabels = ylabels
+        self.ylabels = ylabels[::-1]
         self.label_headers = False
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
@@ -56,7 +56,7 @@ class TableModel(QAbstractTableModel):
 
     def set_data(self, current_data):
         self.beginResetModel()
-        self.current_data = current_data
+        self.current_data = current_data[::-1]
         self.endResetModel()
 
     def get_xwidth(self, data_table):
