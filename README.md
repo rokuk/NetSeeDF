@@ -32,7 +32,7 @@ NetSeeDF is written in Python 3.13.
 
 ## License
 
-This project is released under [GPL v3](/LICENSES/GPL-3.0.txt) license.
+This project is released under the [GPL v3](/LICENSES/GPL-3.0.txt) license.
 
 This projects includes the following third party software:
 - qwebchannel.js from https://github.com/qt/qtwebchannel licensed under [LGPL v3.0](/LICENSES/LGPL-3.0-only.txt)
