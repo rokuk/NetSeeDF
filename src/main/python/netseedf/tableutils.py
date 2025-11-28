@@ -20,7 +20,10 @@ class TableModel(QAbstractTableModel):
         super().__init__()
         self.current_data = current_data[::-1]
         self.xlabels = xlabels
-        self.ylabels = ylabels[::-1]
+        if ylabels is not None:
+            self.ylabels = ylabels[::-1]
+        else:
+            self.ylabels = None
         self.label_headers = False
 
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
