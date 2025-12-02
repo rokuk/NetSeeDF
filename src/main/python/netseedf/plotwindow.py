@@ -307,7 +307,7 @@ class PlotWindow(QWidget):
 
         ax.pcolormesh(self.xboundaries, self.yboundaries, image_data, cmap=cmap, transform=source_crs,
                       vmin=scale_min_value, vmax=scale_max_value, shading="flat")
-        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=500)
+        plt.savefig(image, format="png", bbox_inches="tight", pad_inches=0, dpi=650)
 
         fig, ax = plt.subplots(figsize=(1.1, 3.5), layout="constrained")
 
